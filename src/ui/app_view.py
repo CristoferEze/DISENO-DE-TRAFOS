@@ -1,5 +1,4 @@
-# src/renderer/app_view.py
-
+# src/ui/app_view.py
 # -*- coding: utf-8 -*-
 import PySimpleGUI as sg
 import os
@@ -9,9 +8,9 @@ import tempfile
 from pylatex import Document
 from pdf2image import convert_from_path
 
-from backend.engine import DisenoTransformador
-from backend.reporter import LatexReportGenerator
-from backend.database import acero_electrico_db
+from core.engine import DisenoTransformador
+from core.database import acero_electrico_db, conexiones_normalizadas
+from ui.report_builder import generate_full_report_document
 
 class Application:
     def __init__(self):
@@ -21,7 +20,23 @@ class Application:
 
     def _crear_container_datos_principales(self):
         tipos_de_acero = list(acero_electrico_db.keys())
-        return sg.Frame('Datos Principales del Transformador', [[sg.Text('Tipo:', size=(18,1)), sg.DropDown(['trifasico', 'monofasico'], default_value='trifasico', key='-TIPO-')], [sg.Text('Potencia Nominal (kVA):', size=(18,1)), sg.Input('25', key='-S_KVA-')], [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10500', key='-E1-')], [sg.Text('Tensión Secundario (V):', size=(18,1)), sg.Input('400', key='-E2-')], [sg.Text('Frecuencia (Hz):', size=(18,1)), sg.Input('60', key='-FREQ-')], [sg.Text('Conexión (ej: D-Yn):', size=(18,1)), sg.Input('D-Yn', key='-CONN-')], [sg.Text('TAPs (%):', size=(18,1)), sg.Input('2.5, 5.0', key='-TAPS-', tooltip='Separados por coma. Dejar vacío si no hay.')], [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')]])
+        # Valor por defecto seguro para conexiones
+        conn_default = conexiones_normalizadas[0] if conexiones_normalizadas else ''
+        return sg.Frame('Datos Principales del Transformador', [
+            [sg.Text('Tipo:', size=(18,1)),
+             sg.DropDown(['trifasico', 'monofasico'], default_value='trifasico', key='-TIPO-', enable_events=True)],
+            [sg.Text('Potencia Nominal (kVA):', size=(18,1)), sg.Input('25', key='-S_KVA-')],
+            [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10500', key='-E1-')],
+            [sg.Text('Tensión Secundario (V):', size=(18,1)), sg.Input('400', key='-E2-')],
+            [sg.Text('Frecuencia (Hz):', size=(18,1)), sg.Input('60', key='-FREQ-')],
+            # Conexión como Combo (visible sólo para trifásico)
+            [sg.Text('Conexión:', size=(18,1), key='-LBL-CONN-'),
+             sg.Combo(conexiones_normalizadas, default_value=conn_default, key='-CONN-', readonly=True, size=(22,1))],
+            # TAPs (visible sólo para trifásico)
+            [sg.Text('TAPs (%):', size=(18,1), key='-LBL-TAPS-'),
+             sg.Input('2.5, 5.0', key='-TAPS-', tooltip='Separados por coma. Dejar vacío si no hay.')],
+            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')]
+        ])
 
     def _crear_container_parametros(self):
         params_diseno = sg.Frame('Parámetros de Diseño', [[sg.Text('Relación de Ventana:', size=(18,1)), sg.Input('3.0', key='-RW-')]])
@@ -82,8 +97,7 @@ class Application:
             diseno = DisenoTransformador(**params)
             diseno.ejecutar_calculo_completo()
             
-            reporter = LatexReportGenerator(diseno)
-            latex_doc = reporter.create_latex_document()
+            latex_doc = generate_full_report_document(diseno)
             
             export_dir = "exports"
             os.makedirs(export_dir, exist_ok=True)
@@ -102,9 +116,15 @@ class Application:
                 self.last_report_path = saved
                 self.window['-EXPORT-'].update(disabled=False, text="Ver Archivo")
 
-        except ValueError:
-            sg.popup_error('Error de Entrada', 'Asegúrese de que todos los campos numéricos contengan valores válidos.')
+        except ValueError as e:
+            # Log en terminal y volcado de traceback para facilitar depuración
+            print("Error de Entrada: valores numéricos inválidos.", file=sys.stderr)
+            traceback.print_exc()
+            sg.popup_error('Error de Entrada', 'Asegúrese de que todos los campos numéricos contengan valores válidos. Revise la terminal para más detalles.')
         except Exception as e:
+            # Log completo en terminal para excepciones inesperadas
+            print("Error inesperado durante el cálculo:", file=sys.stderr)
+            traceback.print_exc()
             sg.popup_error('Ocurrió un Error', f'No se pudo completar el proceso.\n\nDetalle: {e}')
             
     def _manejar_exportacion(self):
@@ -124,8 +144,28 @@ class Application:
             event, values = self.window.read()
             if event in (sg.WIN_CLOSED, 'Salir'):
                 break
+
+            # Mostrar/ocultar campos según tipo (trifásico/monofásico)
+            if event == '-TIPO-':
+                es_trifasico = (values.get('-TIPO-') == 'trifasico')
+                # Actualizar visibilidad de los elementos de conexión y taps
+                try:
+                    self.window['-LBL-CONN-'].update(visible=es_trifasico)
+                    self.window['-CONN-'].update(visible=es_trifasico)
+                    self.window['-LBL-TAPS-'].update(visible=es_trifasico)
+                    self.window['-TAPS-'].update(visible=es_trifasico)
+                except Exception:
+                    # Si las claves no existen por alguna razón, ignorar el fallo de visibilidad
+                    pass
+                continue
+
             elif event == 'Calcular Diseño':
+                # Si es monofásico, ignorar los valores de conexión y taps
+                if values.get('-TIPO-') == 'monofasico':
+                    values['-CONN-'] = ''
+                    values['-TAPS-'] = ''
                 self._manejar_calculo(values)
+
             elif event == '-EXPORT-':
                 self._manejar_exportacion()
         self.window.close()

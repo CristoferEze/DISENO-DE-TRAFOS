@@ -1,3 +1,4 @@
+# src/core/utils.py
 # -*- coding: utf-8 -*-
 
 def get_promedio(v):

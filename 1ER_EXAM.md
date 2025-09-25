@@ -243,3 +243,121 @@ Toma de tesnion regulacion objetivo Paso de fase objetivo Intervalo admisible de
         *   Sección `4 - 6`: 159 espiras
         *   Sección `6 - H2`: 3026 espiras
         *   **Total:** `6690 espiras` (Valor cercano a 6684, ajustado por redondeo)84, ajustado por redondeo)
+## Fórmulas Detalladas (Referencia rápida)
+
+A continuación se listan las fórmulas usadas en el flujo de diseño, con definición de variables y unidades.
+
+- Notación:
+  - S: potencia aparente en kVA (kilo-VA)
+  - E1, E2: tensiones en V (línea) a entradas que corresponden a primario y secundario
+  - E1_fase, E2_fase: tensiones de fase en V
+  - f: frecuencia en Hz
+  - Φ: flujo magnético en líneas (líneas = 1e-4 Wb)
+  - C: constante de flujo (adimensional)
+  - B: inducción magnética en kgauss (1 kgauss = 0.1 T)
+  - B_t: inducción en Tesla (B_t = B_kgauss / 10)
+  - J: densidad de corriente en A/mm²
+  - Kc: coeficiente de plenitud del cobre (adimensional)
+  - Kr: coeficiente de plenitud del hierro (adimensional)
+  - fa: factor de apilamiento (adimensional)
+  - An: área neta del núcleo en cm²
+  - Ab: área bruta del núcleo en cm²
+  - D: diámetro circunscrito en cm
+  - Aw: área de ventana en cm²
+  - b: alto (o ancho) de ventana en cm (según convención del cálculo)
+  - M: distancia entre centros en cm
+  - c, c' : anchos de ventana en cm
+  - N1, N2: número de espiras (primario/secundario)
+  - I1, I2: corrientes en A
+
+### Conversión unidades usadas en fórmulas
+- S [VA] = S[kVA] * 1000
+- J [A/m²] = J [A/mm²] * 1e6
+- An [cm²] ⇄ An [m²] = An * 1e-4
+- Φ [líneas] = Φ (líneas). Para usar en fórmulas electromagnéticas se suele usar Φ en líneas.
+
+### 1) Tensiones de fase
+- Si el primario es en línea (E1_linea) y la conexión es estrella:
+  - E1_fase = E1_linea / sqrt(3)
+- Si está en triángulo:
+  - E1_fase = E1_linea
+
+(igual para E2_fase)
+
+### 2) Coeficiente de plenitud del cobre (Kc)
+- Fórmula base según S (kVA) y E1_fase (en kV):
+  - Kc_base = kc_n / (30 + E1_kV)
+    - kc_n = 8  si S ≤ 10
+    - kc_n = 10 si 10 < S ≤ 250
+    - kc_n = 12 si 250 < S ≤ 1000
+  - Kc = Kc_base * 1.15
+  - donde E1_kV = E1_fase / 1000
+
+### 3) Flujo magnético (Φ)
+- Φ [líneas] = C * sqrt(S / f) * 10^6
+  - (S en kVA, f en Hz)
+
+### 4) Área neta del núcleo (An) y área bruta (Ab)
+- An [cm²] = Φ / (B_kgauss * 1000)   (porque B_kgauss*1000 da líneas/cm²)
+- Ab [cm²] = An / fa
+
+### 5) Coeficiente Kr y diámetro del núcleo D
+- Seleccionar Kr desde tablas según merma y número de escalones.
+- D [cm] = 2 * sqrt( An / (π * Kr) )
+
+### 6) Dimensiones de escalones
+- Anchos a_i = factor_i * D  (factores dados en tabla de dimensiones)
+- Espesores desde geometría:
+  - e_1 = ( sqrt(D^2 - a_1^2) ) / 2
+  - e_i = ( sqrt(D^2 - a_i^2) - suma_previos ) / 2
+- Verificación:
+  - An_verificación = 2 * fa * sum( a_i * e_i )
+
+### 7) Área de ventana (Aw), alto b, distancia entre centros M y ancho de ventana c
+- Cálculo usado (forma general):
+  - Aw [m²] = (S_VA) / (3.33 * f * B_t * J_A_m2 * Kc * An_m2)
+    - S_VA = S[kVA] * 1000
+    - B_t = B_kgauss / 10       (Tesla)
+    - J_A_m2 = J [A/mm²] * 1e6
+    - An_m2 = An [cm²] * 1e-4
+  - Aw [cm²] = Aw_m2 * 1e4
+- Alto de ventana b [cm]:
+  - b = sqrt( rel_rw * Aw )   (rel_rw = relación b^2 / Aw o similar según convención)
+- Distancia entre centros:
+  - M = (Aw / b) + D
+- Ancho de ventana:
+  - c' = M - a_1   (o M - a según diseño)
+  - c  = M - D
+
+### 8) Número de espiras
+- N2 (secundario):
+  - N2 = (E2_fase * 10^8) / (4.44 * f * Φ)
+    - E2_fase en V
+    - Φ en líneas
+- N1 (primario) relativo:
+  - N1 = N2 * (E1_fase / E2_fase)
+
+### 9) Corrientes y secciones de conductor
+- Potencia aparente por devanado (por fase):
+  - S_dev_VA = (S[kVA] * 1000) / fases
+- Corrientes:
+  - I1_fase = S_dev_VA / E1_fase
+  - I2_fase = S_dev_VA / E2_fase
+- Secciones (mm²):
+  - s1 = I1_fase / J
+  - s2 = I2_fase / J
+
+### 10) TAPs (tomas de regulación)
+- Para un porcentaje pct (%), la tensión de línea en la toma:
+  - E1_linea_tap = E1_linea * (1 + pct/100)
+- Tensión de fase en la toma (según conexión):
+  - E1_fase_tap = E1_linea_tap / sqrt(3)  (si aplica)
+- Número de espiras primario en toma:
+  - N1_tap = round( N2 * (E1_fase_tap / E2_fase) )
+
+---
+
+### Notas prácticas
+- Mantener consistencia de unidades: convertir kVA→VA, mm²→m², kgauss→Tesla cuando se mezclen fórmulas.
+- Redondeos: Números de espiras deben redondearse y luego ajustarse en el bobinado final por manufactura.
+- Si deseas, puedo generar una sección LaTeX con estas fórmulas (`1ER_EXAM.md` → sección con ecuaciones) o insertar las ecuaciones en formato matemático ya dentro del archivo.

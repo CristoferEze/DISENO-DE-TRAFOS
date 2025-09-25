@@ -73,10 +73,13 @@ densidad_corriente_db = {
 
 # Dimensiones de los Escalones como factor del Diámetro (D) (Tabla 2.4)
 dimensiones_escalones_db = {
-    1: [0.707], 
-    2: [0.850, 0.526], 
-    3: [0.906, 0.707, 0.424], 
-    4: [0.934, 0.796, 0.605, 0.356], 
-    5: [0.950, 0.846, 0.707, 0.534, 0.313], 
+    1: [0.707],
+    2: [0.850, 0.526],
+    3: [0.906, 0.707, 0.424],
+    4: [0.934, 0.796, 0.605, 0.356],
+    5: [0.950, 0.846, 0.707, 0.534, 0.313],
     6: [0.959, 0.875, 0.768, 0.640, 0.488, 0.281]
 }
+
+# Alias público para compatibilidad con la UI (uso: from core.database import conexiones_normalizadas)
+conexiones_normalizadas = conexiones_normalizadas_db
