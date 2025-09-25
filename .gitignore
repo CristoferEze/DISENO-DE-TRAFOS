@@ -1,3 +1,17 @@
 /exports
 /venv
 /~$TRAFOS NORMALIZADOS POR SECTOR.xlsx
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode
+.vscode/
+
+# Mac / Windows temp files
+.DS_Store
+Thumbs.db
