@@ -1,1 +1,0 @@
-"""Paquete 'setup' — verificación e instalación de dependencias (p. ej. TinyTeX)."""
