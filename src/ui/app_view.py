@@ -6,13 +6,18 @@ import sys
 import traceback
 import tempfile
 from pylatex import Document
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF (motor de renderizado integrado)
 import pytinytex
-import threading 
+import io
+from PIL import Image
+import subprocess
 
 from core.engine import DisenoTransformador
 from core.database import acero_electrico_db, conexiones_normalizadas
 from ui.report_builder import generate_full_report_document
+
+# Plotters del módulo nucleus_and_window (se co-localizaron ahí)
+from design_phases.nucleus_and_window import core_plotter, lamination_plotter
 
 class Application:
     def __init__(self):
@@ -62,29 +67,66 @@ class Application:
         ]
         return [[sg.Column(columna_entradas), sg.VSeperator(), sg.Column(columna_resultados)]]
 
-    def _render_latex_to_file(self, latex_doc, final_png_path, dpi=200):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            try:
-                pdf_basename = os.path.join(temp_dir, 'reporte')
-                
-                compiler_path = pytinytex.get_pdf_latex_engine()
-                if not compiler_path or not os.path.exists(compiler_path):
-                    raise RuntimeError("El compilador de TinyTeX no fue encontrado. Intente reiniciar la aplicación.")
+    def _render_latex_to_file(self, latex_doc, temp_dir, final_png_path, dpi=200):
+        """
+        Renderiza el documento LaTeX usando el directorio temp_dir como cwd para pdflatex.
+        Guarda el PNG resultante en final_png_path.
+        """
+        try:
+            pdf_basename = os.path.join(temp_dir, 'reporte')
+            
+            compiler_path = pytinytex.get_pdf_latex_engine()
+            if not compiler_path or not os.path.exists(compiler_path):
+                raise RuntimeError("El compilador de TinyTeX no fue encontrado. Intente reiniciar la aplicación.")
 
-                latex_doc.generate_pdf(pdf_basename, clean_tex=True, compiler=compiler_path)
-                
-                pdf_path = f"{pdf_basename}.pdf"
-                images = convert_from_path(pdf_path, dpi=dpi)
-                if images:
-                    images[0].save(final_png_path, 'PNG')
-                    return final_png_path
-                else:
-                    raise RuntimeError("pdf2image no pudo convertir el archivo PDF.")
-            except Exception as e:
-                print("Error al renderizar con PyLaTeX/TinyTeX:", file=sys.stderr)
-                traceback.print_exc()
-                print(f"Error de LaTeX: No se pudo compilar el documento. Error: {e}", file=sys.stderr)
-                return None
+            tex_path = f"{pdf_basename}.tex"
+            with open(tex_path, "w", encoding="utf-8") as f:
+                f.write(latex_doc.dumps())  # obtiene el contenido .tex
+
+            cmd = [compiler_path, "--interaction=nonstopmode", tex_path]
+            proc = subprocess.run(cmd, cwd=temp_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            output_bytes = proc.stdout or b""
+            output_text = output_bytes.decode("utf-8", errors="replace")
+
+            if proc.returncode != 0:
+                raise RuntimeError(f"pdflatex returned non-zero exit status {proc.returncode}.\nOutput:\n{output_text}")
+
+            pdf_path = f"{pdf_basename}.pdf"
+            if not os.path.exists(pdf_path):
+                raise RuntimeError(f"El archivo PDF no fue generado. Output:\n{output_text}")
+
+            # Renderizar todas las páginas y unirlas verticalmente
+            doc = fitz.open(pdf_path)
+            page_images = []
+            try:
+                for page_num in range(doc.page_count):
+                    page = doc.load_page(page_num)
+                    pix = page.get_pixmap(dpi=dpi)
+                    img = Image.open(io.BytesIO(pix.tobytes("png")))
+                    page_images.append(img)
+            finally:
+                doc.close()
+
+            if not page_images:
+                raise RuntimeError("No se encontraron páginas en el PDF para renderizar.")
+
+            total_height = sum(img.height for img in page_images)
+            max_width = max(img.width for img in page_images)
+            
+            stitched_image = Image.new('RGB', (max_width, total_height), 'white')
+            current_y = 0
+            for img in page_images:
+                stitched_image.paste(img, (0, current_y))
+                current_y += img.height
+
+            stitched_image.save(final_png_path, "PNG")
+
+            return final_png_path
+        except Exception as e:
+            print("Error al renderizar con PyLaTeX/TinyTeX:", file=sys.stderr)
+            traceback.print_exc()
+            print(f"Error de LaTeX: No se pudo compilar o renderizar el documento. Error: {e}", file=sys.stderr)
+            return None
 
     def _manejar_calculo(self, values):
         try:
@@ -97,24 +139,35 @@ class Application:
             diseno = DisenoTransformador(**params)
             diseno.ejecutar_calculo_completo()
             
-            latex_doc = generate_full_report_document(diseno)
-            
             export_dir = "exports"
             os.makedirs(export_dir, exist_ok=True)
             s_kva = values['-S_KVA-'].replace('.','p')
             filename = f"Reporte_{s_kva}kVA.png"
             filepath = os.path.join(export_dir, filename)
-            
-            sg.popup_quick_message('Compilando con TinyTeX y generando imagen...', background_color='blue', text_color='white')
-            saved = self._render_latex_to_file(latex_doc, filepath)
 
-            if saved:
-                self.window['-IMAGE-'].update(filename=saved)
-                self.window.refresh()
-                self.window['-COL-IMAGE-'].contents_changed()
-                
-                self.last_report_path = saved
-                self.window['-EXPORT-'].update(disabled=False, text="Ver Archivo")
+            # Orquestar creación de archivos temporales (imágenes y .tex) en un único temp_dir
+            sg.popup_quick_message('Generando gráficos y compilando reporte...', background_color='blue', text_color='white')
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Generar imágenes en temp_dir y guardar las rutas en el objeto diseno
+                diseno.core_plot_path = core_plotter.generate_core_plot(diseno, output_dir=temp_dir)
+                diseno.lamination_plot_path = lamination_plotter.generate_lamination_plot(diseno, output_dir=temp_dir)
+
+                # Generar el documento LaTeX (el renderer usará las rutas en diseno)
+                latex_doc = generate_full_report_document(diseno)
+
+                # Renderizar usando temp_dir como cwd para pdflatex y guardar PNG final en exports
+                saved = self._render_latex_to_file(latex_doc, temp_dir, filepath)
+
+                if saved:
+                    # Cargar bytes de la imagen desde disco y actualizar el elemento Image de PySimpleGUI
+                    with open(saved, 'rb') as f:
+                        img_bytes = f.read()
+                    self.window['-IMAGE-'].update(data=img_bytes)
+                    self.window.refresh()
+                    self.window['-COL-IMAGE-'].contents_changed()
+                    
+                    self.last_report_path = saved
+                    self.window['-EXPORT-'].update(disabled=False, text="Ver Archivo")
 
         except ValueError as e:
             print("Error de Entrada: valores numéricos inválidos.", file=sys.stderr)

@@ -4,6 +4,7 @@
 import math
 from design_phases.nucleus_and_window import calculation as nucleus_calc
 from design_phases.windings_and_taps import calculation as windings_calc
+from design_phases.weights_and_losses import calculation as weights_calc
 
 class DisenoTransformador:
     """
@@ -64,3 +65,6 @@ class DisenoTransformador:
         """
         nucleus_calc.run(self)
         windings_calc.run(self)
+        
+        # Nueva fase: cálculo de pesos y pérdidas
+        weights_calc.run(self)

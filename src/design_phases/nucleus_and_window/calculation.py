@@ -4,14 +4,42 @@
 import math
 from core import database as db, utils
 
+def _find_steel_data(steel_key):
+    """
+    Función auxiliar para encontrar los datos del acero de forma robusta.
+    Busca por la clave principal (ej: 'M-5') y por la designación antigua (ej: '30M5').
+    """
+    # 1. Intenta una búsqueda directa con la clave principal (ej: 'M-5')
+    if steel_key in db.acero_electrico_db:
+        return db.acero_electrico_db[steel_key]
+    
+    # 2. Si falla, itera y busca en la 'designacion_antigua' (ej: '30M5')
+    for data in db.acero_electrico_db.values():
+        if data.get('designacion_antigua') == steel_key:
+            return data
+            
+    # 3. Si no se encuentra de ninguna forma, lanza un error claro.
+    raise KeyError(f"No se encontraron datos para el tipo de acero '{steel_key}' en la base de datos.")
+
 def run(d):
     """Realiza los cálculos del núcleo y la ventana."""
     # Lógica de _calcular_parametros_base
     d.B_kgauss = d.B_man if d.B_man else utils.get_promedio(db.densidad_flujo_db[utils.sel_clave(db.densidad_flujo_db, d.S)])
     d.B_tesla = d.B_kgauss / 10.0
     d.J = utils.get_promedio(db.densidad_corriente_db[d.refrig]['Cobre'])
-    d.fa = db.acero_electrico_db[d.acero]['fa']
-    d.merma_id = db.acero_electrico_db[d.acero]['merma']
+    
+    # --- INICIO DE LA CORRECCIÓN ---
+    # En lugar de acceder directamente al diccionario, usamos la función auxiliar
+    # para encontrar los datos del acero de manera segura.
+    try:
+        steel_data = _find_steel_data(d.acero)
+        d.fa = steel_data['fa']
+        d.merma_id = steel_data['merma']
+    except KeyError as e:
+        # Propagamos el error con un mensaje más descriptivo si la función falla.
+        raise ValueError(f"El tipo de acero '{d.acero}' no es válido o no se encuentra en la base de datos.") from e
+    # --- FIN DE LA CORRECCIÓN ---
+    
     tipo_nucleo_key = f"{d.tipo}_columnas"
     d.C = d.C_man if d.C_man else utils.get_promedio(db.constante_flujo_db[tipo_nucleo_key])
     
@@ -22,11 +50,8 @@ def run(d):
             parts = conn_str.split('-', 1)
             d.conn1, d.conn2 = parts[0], parts[1]
         elif conn_str:
-            # Si el usuario introdujo una sola parte (p.ej. "D" o "YN"), úsala en ambas
-            d.conn1 = conn_str
-            d.conn2 = conn_str
+            d.conn1 = d.conn2 = conn_str
         else:
-            # Valor por defecto seguro
             d.conn1, d.conn2 = 'D', 'YN'
         d.E1_fase = d.E1_linea if 'D' in d.conn1 else d.E1_linea / math.sqrt(3)
         d.E2_fase = d.E2_linea if 'D' in d.conn2 else d.E2_linea / math.sqrt(3)
