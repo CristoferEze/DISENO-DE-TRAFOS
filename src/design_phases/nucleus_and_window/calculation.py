@@ -93,3 +93,17 @@ def run(d):
     d.M = (d.Aw / d.b) + d.D
     d.c_prima = d.M - d.anchos[0] if d.anchos else None
     d.c = d.M - d.D
+
+    # --- NUEVO: Cálculo de las dimensiones del yugo y columnas ---
+    # Estas variables son necesarias para los cálculos de peso precisos y para el plotter.
+    a1 = d.anchos[0] if d.anchos else d.D  # Ancho del escalón más grande (o D como fallback)
+
+    # Altura del yugo (g), Fórmula (1.54)
+    # El ancho del yugo 'a' es igual al ancho del escalón más grande 'a1'
+    d.g = d.An / a1 if a1 > 0 else 0
+
+    # Longitud del yugo (L) para monofásico, Fórmula (1.55)
+    d.L_monofasico = d.c + d.D + a1
+
+    # Longitud del yugo (L) para trifásico, Fórmula (1.58)
+    d.L_trifasico = 2 * d.c + 2 * d.D + a1
