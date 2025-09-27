@@ -1,11 +1,14 @@
 @echo off
 REM =================================================================
-REM        SCRIPT DE PUBLICACION PARA GITHUB RELEASES
+REM        SCRIPT DE PUBLICACION (SOLO PUBLICACION)
 REM =================================================================
-REM Este script automatiza la creacion de una nueva release en GitHub.
+REM Este script TOMA un instalador YA CREADO y lo publica en GitHub Releases.
+REM NO COMPILA EL PROYECTO. Debes ejecutar 'build.bat' primero.
+REM
 REM Prerrequisitos:
-REM 1. GitHub CLI instalado (`winget install GitHub.cli`) y autenticado.
-REM 2. Un archivo .env en la raiz con GITHUB_TOKEN=ghp_...
+REM 1. Ejecutar 'build.bat' para crear el archivo del instalador.
+REM 2. GitHub CLI instalado (`winget install GitHub.cli`) y autenticado.
+REM 3. Un archivo .env en la raiz con GITHUB_TOKEN y APP_VERSION.
 REM =================================================================
 
 SET "REPO=CristoferEze/DISENO-DE-TRAFOS"
@@ -16,50 +19,50 @@ echo *** INICIANDO PROCESO DE PUBLICACION EN GITHUB ***
 echo Repositorio: %REPO%
 echo.
 
-REM --- PASO 1: Obtener la version para la release ---
-set /p VERSION_TAG="=> Por favor, introduce la etiqueta de la version (ej: v1.0.1): "
-IF "%VERSION_TAG%"=="" (
-    echo.
-    echo *** ERROR: La etiqueta de la version no puede estar vacia. Abortando. ***
+REM --- PASO 1: Cargar configuracion desde .env (Token y Version) ---
+echo [1/3] Cargando configuracion desde .env...
+IF NOT EXIST .env (
+    echo *** ERROR: No se encuentra el archivo .env. ***
     exit /b 1
 )
 
-REM --- PASO 2: Cargar el token de GitHub desde .env ---
-echo.
-echo [1/4] Cargando token de GitHub desde .env...
-IF NOT EXIST .env (
-    echo *** ERROR: No se encuentra el archivo .env. Por favor, crealo con tu GITHUB_TOKEN. ***
-    exit /b 1
+REM Limpiar variables previas para asegurar una lectura limpia
+SET "GITHUB_TOKEN="
+SET "VERSION_TAG="
+
+REM Leer el archivo .env linea por linea
+FOR /F "usebackq tokens=1,2 delims==" %%A IN (".env") DO (
+    IF "%%A"=="GITHUB_TOKEN" SET "GITHUB_TOKEN=%%B"
+    IF "%%A"=="APP_VERSION" SET "VERSION_TAG=%%B"
 )
-FOR /F "tokens=1,2 delims==" %%A IN (.env) DO (
-    IF "%%A"=="GITHUB_TOKEN" SET GITHUB_TOKEN=%%B
-)
+
+REM Validar que las variables se hayan cargado
 IF NOT DEFINED GITHUB_TOKEN (
     echo *** ERROR: No se encontro la variable GITHUB_TOKEN en el archivo .env. ***
     exit /b 1
 )
-echo    Token cargado.
-echo.
-
-REM --- PASO 3: Construir el instalador ---
-echo [2/4] Ejecutando el script de compilacion (build.bat)...
-call build.bat
-IF %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo *** ERROR: El script build.bat fallo. Abortando publicacion. ***
+IF NOT DEFINED VERSION_TAG (
+    echo *** ERROR: No se encontro la variable APP_VERSION en el archivo .env. ***
     exit /b 1
 )
+echo    Token cargado.
+echo    Version a publicar: %VERSION_TAG%
+echo.
+
+REM --- PASO 2: Verificar que el instalador YA EXISTA ---
+echo [2/3] Verificando que el archivo '%SETUP_FILE%' exista...
 IF NOT EXIST %SETUP_FILE% (
     echo.
-    echo *** ERROR: El archivo del instalador (%SETUP_FILE%) no fue encontrado despues de la compilacion. ***
+    echo *** ERROR: El archivo del instalador no fue encontrado. ***
+    echo Por favor, ejecuta 'build.bat' primero para compilar la aplicacion.
     exit /b 1
 )
-echo    Compilacion completada.
+echo    Archivo de instalacion encontrado y listo para publicar.
 echo.
 
-REM --- PASO 4: Crear la Release en GitHub ---
-echo [3/4] Creando la release %VERSION_TAG% en GitHub...
-gh release create %VERSION_TAG% "%SETUP_FILE%" --repo %REPO% --title "Release %VERSION_TAG%" --notes "Lanzamiento automatico de la version %VERSION_TAG%."
+REM --- PASO 3: Crear la Release en GitHub ---
+echo [3/3] Creando y subiendo la release %VERSION_TAG% a GitHub...
+gh release create %VERSION_TAG% "%SETUP_FILE%" --repo %REPO% --title "Release %VERSION_TAG%" --notes "Lanzamiento de la version %VERSION_TAG%."
 
 IF %ERRORLEVEL% NEQ 0 (
     echo.
@@ -69,7 +72,8 @@ IF %ERRORLEVEL% NEQ 0 (
 echo    Release creada y archivo subido con exito.
 echo.
 
-echo [4/4] Limpiando el instalador local...
+REM --- Limpieza Post-Publicacion ---
+echo Limpiando el instalador local...
 del %SETUP_FILE%
 echo.
 
