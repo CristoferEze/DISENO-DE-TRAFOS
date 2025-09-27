@@ -12,3 +12,6 @@ pip freeze > requirements.txt
 
 Eliminar cache git
 git rm -r --cached .
+
+Ver tree del proyecto
+tree.exe -L 4 -I "venv"

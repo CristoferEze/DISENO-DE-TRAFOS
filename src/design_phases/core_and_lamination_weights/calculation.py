@@ -16,15 +16,20 @@ def run(d):
     espesor_lamina_cm = espesor_lamina_mm / 10.0
 
     if d.fases == 3 and getattr(d, 'anchos', None) and getattr(d, 'espesores', None):
-        piezas_defs = {
-            '1': {'l': d.b + getattr(d, 'g', 0.0), 'w': getattr(d, 'g', 0.0), 'n_por_capa': 3},
-            '2': {'l': d.c + getattr(d, 'g', 0.0), 'w': getattr(d, 'g', 0.0), 'n_por_capa': 2},
-            '3': {'l': d.c + d.anchos[0] + getattr(d, 'g', 0.0), 'w': getattr(d, 'g', 0.0), 'n_por_capa': 1}
-        }
-
+ 
         for i, espesor_escalon in enumerate(d.espesores):
             ancho_paquete_cm = (espesor_escalon * 2.0) if espesor_escalon else espesor_lamina_cm
             num_laminas = int(math.ceil(ancho_paquete_cm / espesor_lamina_cm)) if espesor_lamina_cm > 0 else 0
+ 
+            # Obtener el ancho de la laminación para el escalón actual (en cm)
+            ancho_escalon_cm = d.anchos[i]
+ 
+            # Definir piezas usando el ancho del escalón actual
+            piezas_defs = {
+                '1': {'l': d.b + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 3},
+                '2': {'l': d.c + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 2},
+                '3': {'l': d.c * 2.0 + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 1}
+            }
 
             peso_total_escalon = 0.0
             detalles_escalon = []
