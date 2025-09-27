@@ -22,7 +22,8 @@ def run(doc, d, add_step):
                 # 1. Mostrar los cálculos detallados de las piezas de este escalón (primero)
                 if 'detalles' in step_data and step_data['detalles']:
                     for pieza_detalle in step_data['detalles']:
-                        titulo = f"Cálculo Peso - {pieza_detalle.get('nombre', 'pieza')}"
+                        num_piezas = pieza_detalle.get('num_piezas', 0)
+                        titulo = f"Cálculo Peso - {pieza_detalle.get('nombre', 'pieza')} ({num_piezas} piezas)"
                         formula = pieza_detalle.get('formula', 'N/A')
                         valores = pieza_detalle.get('valores', 'N/A')
                         resultado = f"Q = {pieza_detalle.get('peso_kg', 0.0):.3f}"
