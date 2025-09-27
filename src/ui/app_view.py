@@ -213,7 +213,8 @@ class Application:
                     diseno.lamination_plot_filename = None
     
                 # Generar el documento LaTeX (el renderer preferirá los nombres de archivo relativos)
-                latex_doc = generate_full_report_document(diseno)
+                # Pasar el directorio temporal para que los plotters escriban dentro de él
+                latex_doc = generate_full_report_document(diseno, work_dir=temp_dir)
 
                 # Renderizar usando temp_dir como cwd para pdflatex y guardar PNG final en exports
                 saved = self._render_latex_to_file(latex_doc, temp_dir, filepath)

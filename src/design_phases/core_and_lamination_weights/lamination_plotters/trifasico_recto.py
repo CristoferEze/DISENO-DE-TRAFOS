@@ -82,7 +82,7 @@ def draw(d, output_dir, step_index=0):
     x_yugo_sup = piece_dims['1']['width']
     y_yugo_sup = piece_dims['2']['height'] + piece_dims['1']['height']
     ax_main.add_patch(patches.Rectangle((x_yugo_sup, y_yugo_sup-piece_dims['3']['height']), piece_dims['3']['width'], piece_dims['3']['height'], fc='w', ec='k'))
-    ax_main.text(x_yugo_sup + piece_dims['3']['width']/2, y_yugo_sup- piece_dims['3']['height']*3/2, '3', ha='center', va='center', fontsize=20)
+    ax_main.text(x_yugo_sup + piece_dims['3']['width']/2, y_yugo_sup- piece_dims['3']['height']/2, '3', ha='center', va='center', fontsize=20)
 
     ax_main.set_title(f"Dimensionado de Laminación - Escalón {step_index + 1}\nAncho de Lámina: {lamination_width_mm:.1f} mm")
 
