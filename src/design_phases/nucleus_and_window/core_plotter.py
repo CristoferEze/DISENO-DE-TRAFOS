@@ -6,7 +6,7 @@ import os
 def generate_core_plot(d, output_dir='temp'):
     """
     Genera una visualización de la sección transversal del núcleo cruciforme
-    y la guarda como una imagen.
+    y la guarda como una imagen. Devuelve la ruta absoluta en una lista.
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -49,5 +49,5 @@ def generate_core_plot(d, output_dir='temp'):
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
     
-    # Devolver una lista para mantener una API consistente (posible expansión a múltiples imágenes)
-    return [output_path]
+    # Devolver una lista con la ruta ABSOLUTA para evitar problemas al compilar LaTeX
+    return [os.path.abspath(output_path)]

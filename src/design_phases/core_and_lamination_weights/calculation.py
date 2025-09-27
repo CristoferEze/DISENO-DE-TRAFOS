@@ -3,6 +3,7 @@
 
 import math
 from core import database as db
+from . import lamination_plotters
 
 def run(d):
     """Calcula el peso del núcleo detallado por cada escalón y sus laminaciones."""
@@ -10,6 +11,7 @@ def run(d):
     d.Qr_por_laminaciones = 0.0
 
     rho_g_cm3 = 7.65
+    rho_kg_cm3 = rho_g_cm3 / 1000.0  # Densidad en kg/cm^3 para los cálculos
     espesor_lamina_mm = db.acero_electrico_db.get(d.acero, {}).get('espesor_mm', 0.35)
     espesor_lamina_cm = espesor_lamina_mm / 10.0
 
@@ -28,21 +30,40 @@ def run(d):
             detalles_escalon = []
 
             for nombre, pieza in piezas_defs.items():
+                # --- LÓGICA DE CÁLCULO (sin cambios) ---
                 volumen_una_lamina = pieza['l'] * pieza['w'] * espesor_lamina_cm
-                peso_una_lamina_kg = (volumen_una_lamina * rho_g_cm3) / 1000.0
+                peso_una_lamina_kg = volumen_una_lamina * rho_kg_cm3
                 peso_total_tipo = peso_una_lamina_kg * num_laminas * pieza['n_por_capa']
-
+                
+                # --- NUEVO: Guardar fórmulas y valores para el reporte ---
+                formula_latex = r"Q_{pieza} = (l \cdot w \cdot e_{lam}) \cdot N_{lam} \cdot n_{piezas} \cdot \rho_{acero}"
+                valores_latex = (
+                    fr"Q_{{{nombre}}} = ({pieza['l']:.2f} \cdot {pieza['w']:.2f} \cdot {espesor_lamina_cm:.4f}) "
+                    fr"\cdot {num_laminas} \cdot {pieza['n_por_capa']} \cdot {rho_kg_cm3:.5f}"
+                )
+    
                 detalles_escalon.append({
                     'nombre': f'Figura {nombre}',
                     'num_piezas': num_laminas * pieza['n_por_capa'],
-                    'peso_kg': peso_total_tipo
+                    'peso_kg': peso_total_tipo,
+                    'formula': formula_latex,
+                    'valores': valores_latex
                 })
                 peso_total_escalon += peso_total_tipo
+
+            # --- NUEVO: Generar y guardar la ruta del gráfico para este escalón ---
+            plot_path = None
+            try:
+                plot_path = lamination_plotters.generate_plot(d, output_dir=f'temp/step_{i + 1}', step_index=i)
+            except Exception as e:
+                # No interrumpir el cálculo si falla el dibujo; registrar advertencia en consola
+                print(f"Advertencia: No se pudo generar el gráfico para el escalón {i+1}. Error: {e}")
 
             d.peso_por_escalon.append({
                 'escalon': i + 1,
                 'detalles': detalles_escalon,
-                'peso_total_escalon': peso_total_escalon
+                'peso_total_escalon': peso_total_escalon,
+                'plot_path': plot_path
             })
             d.Qr_por_laminaciones += peso_total_escalon
 

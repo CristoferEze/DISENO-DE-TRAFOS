@@ -1,7 +1,7 @@
 # src/design_phases/nucleus_and_window/renderer.py
 # -*- coding: utf-8 -*-
 
-from pylatex import Section, Subsection, Math, Command, Figure
+from pylatex import Section, Subsection, Math, Command, Figure, Itemize
 from pylatex.utils import NoEscape
 import os
 
@@ -22,38 +22,39 @@ def run(doc, d, add_step):
         add_step(doc, "Área Neta ($A_n$)", r"A_n = \frac{\Phi}{B}", f"A_n = \\frac{{{d.flujo:,.0f}}}{{{d.B_kgauss*1000:.0f}}}", f"A_n = {d.An:.2f}", "cm^2")
         add_step(doc, "Área Bruta ($A_b$)", r"A_b = \frac{A_n}{f_a}", f"A_b = \\frac{{{d.An:.2f}}}{{{d.fa:.3f}}}", f"A_b = {d.Ab:.2f}", "cm^2")
 
-        with doc.create(Subsection(NoEscape(f"Dimensiones para {d.num_escalones} Escalones"), numbering=False)):
+        with doc.create(Subsection(NoEscape(f"Cálculo de escalones con su valor a y e"), numbering=False)):
             if not getattr(d, 'anchos', None) or not getattr(d, 'espesores', None):
                 doc.append("No hay dimensiones calculadas.")
             else:
-                for i, (ancho, espesor) in enumerate(zip(d.anchos, d.espesores)):
-                    # Corregido el error de tipeo 'espor' a 'espesor'
-                    linea = f"\\textbullet\\ Ancho $a_{{{i+1}}}$: {ancho:.2f} cm, Espesor $e_{{{i+1}}}$: {espesor:.2f} cm"
-                    doc.append(NoEscape(linea))
-                    doc.append(Command('newline'))
+                # Usar un entorno Itemize para listar anchos y espesores
+                with doc.create(Itemize()) as itemize:
+                    for i, (ancho, espesor) in enumerate(zip(d.anchos, d.espesores)):
+                        itemize.add_item(NoEscape(f"Ancho $a_{{{i+1}}}$: {ancho:.2f} cm, Espesor $e_{{{i+1}}}$: {espesor:.2f} cm"))
                 
-                doc.append(Command('vspace', '0.5em'))
-                doc.append(NoEscape(r"Área Neta de Verificación: \\"))
+                doc.append("Área Neta de Verificación:")
                 doc.append(Math(data=[NoEscape(f"A_{{n,verif}} = {d.An_verificacion:.2f} \\; \\mathrm{{cm^2}} \\approx {d.An:.2f} \\; \\mathrm{{cm^2}}")], escape=False))
                 
-                # --- AÑADIR LOS GRÁFICOS (SOLUCIÓN DEFINITIVA) ---
+                # Mostrar el gráfico de la sección transversal del núcleo si existe.
+                # Aceptamos rutas absolutas o nombres relativos (cuando LaTeX compila en temp_dir).
                 try:
-                    core_full_path = getattr(d, 'core_plot_path', None) or getattr(d, 'core_plot_filename', None)
+                    core_full_path = (
+                        getattr(d, 'core_plot_path', None)
+                        or getattr(d, 'core_plot_filename', None)
+                        or (getattr(d, 'core_plot_paths', [None])[-1] if getattr(d, 'core_plot_paths', None) else None)
+                    )
                     if core_full_path:
-                        # USA os.path.basename PARA EXTRAER SOLO EL NOMBRE DEL ARCHIVO
-                        core_basename = os.path.basename(core_full_path)
-                        with doc.create(Figure(position='h!')) as fig:
-                            fig.add_image(core_basename, width=NoEscape(r'0.6\textwidth'))
-                            fig.add_caption('Sección transversal del núcleo.')
-
-                    lam_full_path = getattr(d, 'lamination_plot_path', None) or getattr(d, 'lamination_plot_filename', None)
-                    if lam_full_path:
-                        # HACE LO MISMO PARA EL OTRO GRÁFICO
-                        lam_basename = os.path.basename(lam_full_path)
-                        with doc.create(Figure(position='h!')) as fig:
-                            fig.add_image(lam_basename, width=NoEscape(r'0.7\textwidth'))
-                            fig.add_caption('Dimensiones de las piezas de laminación.')
-
+                        # Si es absoluta y existe, úsala; si es relativa, la dejaremos tal cual
+                        use_path = core_full_path
+                        if os.path.isabs(core_full_path):
+                            if not os.path.exists(core_full_path):
+                                use_path = None
+                        if use_path:
+                            safe_core_path = use_path.replace('\\', '/')
+                            with doc.create(Figure(position='h!')) as fig:
+                                fig.add_image(safe_core_path, width=NoEscape(r'0.6\textwidth'))
+                                fig.add_caption('Sección transversal del núcleo.')
+                        else:
+                            doc.append(NoEscape(fr"\textit{{No se encontró la imagen absoluta de la sección transversal del núcleo: {core_full_path}}}"))
                 except Exception as e:
                     doc.append(NoEscape(fr"\textit{{Error al incluir gráficos: {e}}}"))
 

@@ -18,7 +18,7 @@ from ui.report_builder import generate_full_report_document
 
 # Plotters del módulo nucleus_and_window (se co-localizaron ahí)
 from design_phases.nucleus_and_window import core_plotter
-from design_phases.nucleus_and_window.lamination_plotters import generate_plot as lamination_plotters_generate
+from design_phases.core_and_lamination_weights.lamination_plotters import generate_plot as lamination_plotters_generate
 
 class Application:
     def __init__(self):
@@ -200,15 +200,17 @@ class Application:
                     diseno.core_plot_path = core_paths
                     diseno.core_plot_filename = os.path.basename(core_paths) if core_paths else None
 
-                lam_paths = lamination_plotters_generate(diseno, output_dir=temp_dir)
-                if isinstance(lam_paths, list):
+                # Las imágenes de laminación ahora se generan en la fase de cálculo (calculation.run).
+                # Aquí solo recogemos las rutas que quedaron registradas en diseno.peso_por_escalon.
+                if hasattr(diseno, 'peso_por_escalon'):
+                    lam_paths = [s.get('plot_path') for s in diseno.peso_por_escalon if s.get('plot_path')]
                     diseno.lamination_plot_paths = lam_paths
                     diseno.lamination_plot_path = lam_paths[-1] if lam_paths else None
                     diseno.lamination_plot_filename = os.path.basename(diseno.lamination_plot_path) if diseno.lamination_plot_path else None
                 else:
-                    diseno.lamination_plot_paths = [lam_paths] if lam_paths else []
-                    diseno.lamination_plot_path = lam_paths
-                    diseno.lamination_plot_filename = os.path.basename(lam_paths) if lam_paths else None
+                    diseno.lamination_plot_paths = []
+                    diseno.lamination_plot_path = None
+                    diseno.lamination_plot_filename = None
     
                 # Generar el documento LaTeX (el renderer preferirá los nombres de archivo relativos)
                 latex_doc = generate_full_report_document(diseno)

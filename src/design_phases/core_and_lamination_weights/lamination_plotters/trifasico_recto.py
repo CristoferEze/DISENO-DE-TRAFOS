@@ -3,14 +3,16 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
 
-def draw(d, output_dir):
+def draw(d, output_dir, step_index=0):
     """
-    Dibuja el ensamble y las piezas de un núcleo trifásico con corte recto,
-    imitando el estilo del diagrama del libro/ejemplo.
+    Dibuja el ensamble y las piezas de un núcleo trifásico con corte recto
+    para un escalón específico (step_index). Devuelve la RUTA ABSOLUTA
+    del archivo generado.
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    output_path = os.path.join(output_dir, 'lamination_plot.png')
+
+    output_path = os.path.join(output_dir, f'lamination_plot_step_{step_index + 1}.png')
 
     # Crear una figura con un layout específico: un subplot grande arriba y tres más pequeños abajo
     fig = plt.figure(figsize=(8, 10))
@@ -25,9 +27,10 @@ def draw(d, output_dir):
     b_mm = getattr(d, 'b', 0.0) * 10.0
     g_mm = getattr(d, 'g', 0.0) * 10.0
     a1_mm = (d.anchos[0] if getattr(d, 'anchos', None) else 0.0) * 10.0
+    current_a_mm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0) * 10.0
 
     # Longitudes de las piezas según el diagrama de referencia
-    l1_mm = b_mm + g_mm 
+    l1_mm = b_mm + g_mm
     l2_mm = getattr(d, 'c', 0.0) * 10.0 + g_mm
     l3_mm = getattr(d, 'c', 0.0) * 10.0 + a1_mm + g_mm
 
@@ -55,7 +58,7 @@ def draw(d, output_dir):
     ax_main.plot([g_mm, g_mm+a1_mm], [-g_mm*1.2, -g_mm*1.2], 'k')
     ax_main.text(-total_width*0.1, b_mm/2, f'{b_mm:.1f} mm', ha='right', va='center', rotation=90)
     
-    ax_main.set_title("Peso del núcleo por laminaciones\nPrimer escalón")
+    ax_main.set_title(f"Dimensionado de Laminación\nEscalón {step_index + 1} (Ancho: {current_a_mm:.1f} mm)")
 
     # --- 2. DIBUJO DE PIEZAS INDIVIDUALES ---
     for ax in [ax1, ax2, ax3]:
@@ -83,4 +86,4 @@ def draw(d, output_dir):
     plt.tight_layout()
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
-    return output_path
+    return os.path.abspath(output_path)
