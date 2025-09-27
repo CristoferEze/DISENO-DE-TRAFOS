@@ -17,7 +17,8 @@ from core.database import acero_electrico_db, conexiones_normalizadas
 from ui.report_builder import generate_full_report_document
 
 # Plotters del módulo nucleus_and_window (se co-localizaron ahí)
-from design_phases.nucleus_and_window import core_plotter, lamination_plotter
+from design_phases.nucleus_and_window import core_plotter
+from design_phases.nucleus_and_window.lamination_plotters import generate_plot as lamination_plotters_generate
 
 class Application:
     def __init__(self):
@@ -39,12 +40,23 @@ class Application:
              sg.Combo(conexiones_normalizadas, default_value=conn_default, key='-CONN-', readonly=True, size=(22,1))],
             [sg.Text('TAPs (%):', size=(18,1), key='-LBL-TAPS-'),
              sg.Input('2.5, 5.0', key='-TAPS-', tooltip='Separados por coma. Dejar vacío si no hay.')],
-            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')]
+            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')],
+            [sg.Text('Tipo de Corte:', size=(18,1)), sg.DropDown(['Recto', 'Diagonal'], default_value='Recto', key='-CUT_TYPE-')]
         ])
 
     def _crear_container_parametros(self):
-        params_diseno = sg.Frame('Parámetros de Diseño', [[sg.Text('Relación de Ventana:', size=(18,1)), sg.Input('3.0', key='-RW-')]])
-        params_avanzados = sg.Frame('Parámetros Avanzados (Opcional)', [[sg.Text('Inducción B (kGauss):', size=(18,1)), sg.Input(key='-B_MANUAL-')], [sg.Text('Constante C:', size=(18,1)), sg.Input(key='-C_MANUAL-')], [sg.Text('Coeficiente Kc:', size=(18,1)), sg.Input(key='-KC_MANUAL-')]])
+        # --- INICIO DE LA MODIFICACIÓN ---
+        params_diseno = sg.Frame('Parámetros de Diseño', [
+            [sg.Text('Relación de Ventana:', size=(18,1)), sg.Input('3.0', key='-RW-')],
+            [sg.Text('Ciclo de Carga (24h):', size=(18,1), tooltip='Formato: carga_frac,horas; carga_frac,horas; ...\nEj: 1.25,2; 1,6; 0.5,8; 0.25,4; 0,4')],
+            [sg.Input('1.25,2; 1,6; 0.5,8; 0.25,4; 0,4', key='-CICLO_CARGA-')]
+        ])
+        # --- FIN DE LA MODIFICACIÓN ---
+        params_avanzados = sg.Frame('Parámetros Avanzados (Opcional)', [
+            [sg.Text('Inducción B (kGauss):', size=(18,1)), sg.Input(key='-B_MANUAL-')],
+            [sg.Text('Constante C:', size=(18,1)), sg.Input(key='-C_MANUAL-')],
+            [sg.Text('Coeficiente Kc:', size=(18,1)), sg.Input(key='-KC_MANUAL-')]
+        ])
         return params_diseno, params_avanzados
 
     def _crear_layout(self):
@@ -134,7 +146,35 @@ class Application:
             self.window['-EXPORT-'].update(disabled=True)
             self.window['-IMAGE-'].update(filename='')
 
-            params = { 'tipo': values['-TIPO-'], 'S': float(values['-S_KVA-']), 'E1': float(values['-E1-']), 'E2': float(values['-E2-']), 'f': float(values['-FREQ-']), 'acero': values['-ACERO-'], 'conn': values['-CONN-'], 'taps': [float(t.strip()) for t in values['-TAPS-'].split(',')] if values['-TAPS-'].strip() else [], 'rel_rw': float(values['-RW-']), 'b_man': float(values['-B_MANUAL-']) if values['-B_MANUAL-'] else None, 'c_man': float(values['-C_MANUAL-']) if values['-C_MANUAL-'] else None, 'kc_man': float(values['-KC_MANUAL-']) if values['-KC_MANUAL-'] else None }
+            # --- AÑADIR PARSEO DEL CICLO DE CARGA ---
+            ciclo_str = values.get('-CICLO_CARGA-', '') or ''
+            ciclo_carga = []
+            if ciclo_str.strip():
+                pares = [p for p in ciclo_str.split(';') if p.strip()]
+                for par in pares:
+                    try:
+                        carga, horas = par.split(',')
+                        ciclo_carga.append((float(carga.strip()), float(horas.strip())))
+                    except Exception:
+                        # ignorar pares mal formateados
+                        continue
+
+            params = {
+                'tipo': values['-TIPO-'],
+                'S': float(values['-S_KVA-']),
+                'E1': float(values['-E1-']),
+                'E2': float(values['-E2-']),
+                'f': float(values['-FREQ-']),
+                'acero': values['-ACERO-'],
+                'conn': values['-CONN-'],
+                'taps': [float(t.strip()) for t in values['-TAPS-'].split(',')] if values['-TAPS-'].strip() else [],
+                'rel_rw': float(values['-RW-']),
+                'b_man': float(values['-B_MANUAL-']) if values['-B_MANUAL-'] else None,
+                'c_man': float(values['-C_MANUAL-']) if values['-C_MANUAL-'] else None,
+                'kc_man': float(values['-KC_MANUAL-']) if values['-KC_MANUAL-'] else None,
+                'ciclo_carga': ciclo_carga,
+                'cut_type': values.get('-CUT_TYPE-', 'Recto')
+            }
 
             diseno = DisenoTransformador(**params)
             diseno.ejecutar_calculo_completo()
@@ -148,11 +188,29 @@ class Application:
             # Orquestar creación de archivos temporales (imágenes y .tex) en un único temp_dir
             sg.popup_quick_message('Generando gráficos y compilando reporte...', background_color='blue', text_color='white')
             with tempfile.TemporaryDirectory() as temp_dir:
-                # Generar imágenes en temp_dir y guardar las rutas en el objeto diseno
-                diseno.core_plot_path = core_plotter.generate_core_plot(diseno, output_dir=temp_dir)
-                diseno.lamination_plot_path = lamination_plotter.generate_lamination_plot(diseno, output_dir=temp_dir)
+                # Generar imágenes en temp_dir y guardar nombres/rutas en el objeto diseno.
+                # Soportamos plotters que devuelvan una sola ruta (str) o una lista de rutas.
+                core_paths = core_plotter.generate_core_plot(diseno, output_dir=temp_dir)
+                if isinstance(core_paths, list):
+                    diseno.core_plot_paths = core_paths
+                    diseno.core_plot_path = core_paths[-1] if core_paths else None
+                    diseno.core_plot_filename = os.path.basename(diseno.core_plot_path) if diseno.core_plot_path else None
+                else:
+                    diseno.core_plot_paths = [core_paths] if core_paths else []
+                    diseno.core_plot_path = core_paths
+                    diseno.core_plot_filename = os.path.basename(core_paths) if core_paths else None
 
-                # Generar el documento LaTeX (el renderer usará las rutas en diseno)
+                lam_paths = lamination_plotters_generate(diseno, output_dir=temp_dir)
+                if isinstance(lam_paths, list):
+                    diseno.lamination_plot_paths = lam_paths
+                    diseno.lamination_plot_path = lam_paths[-1] if lam_paths else None
+                    diseno.lamination_plot_filename = os.path.basename(diseno.lamination_plot_path) if diseno.lamination_plot_path else None
+                else:
+                    diseno.lamination_plot_paths = [lam_paths] if lam_paths else []
+                    diseno.lamination_plot_path = lam_paths
+                    diseno.lamination_plot_filename = os.path.basename(lam_paths) if lam_paths else None
+    
+                # Generar el documento LaTeX (el renderer preferirá los nombres de archivo relativos)
                 latex_doc = generate_full_report_document(diseno)
 
                 # Renderizar usando temp_dir como cwd para pdflatex y guardar PNG final en exports

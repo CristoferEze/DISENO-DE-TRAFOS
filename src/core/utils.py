@@ -45,3 +45,29 @@ def get_specific_iron_loss(steel_key, b_kgauss):
     closest_b = min(losses.keys(), key=lambda k: abs(k - b_kgauss))
 
     return losses[closest_b]
+
+def find_awg_conductor_for_section(section_mm2):
+    """
+    Encuentra el calibre AWG más pequeño cuya sección transversal sea mayor o igual
+    a la sección requerida.
+
+    Args:
+        section_mm2 (float): sección requerida en mm^2
+
+    Returns:
+        tuple: (awg_label (str), properties (dict)) o (None, None) si no hay ajuste.
+    """
+    if section_mm2 is None:
+        return (None, None)
+
+    best_fit_awg = None
+    min_section_found = float('inf')
+
+    for awg, props in db.awg_conductors_db.items():
+        awg_section = props.get('seccion_mm2', 0)
+        # si cumple la condición y es la de menor sección encontrada que aún cumple
+        if awg_section >= section_mm2 and awg_section < min_section_found:
+            min_section_found = awg_section
+            best_fit_awg = (awg, props)
+
+    return best_fit_awg if best_fit_awg else (None, None)

@@ -111,5 +111,56 @@ dimensiones_escalones_db = {
     6: [0.959, 0.875, 0.768, 0.640, 0.488, 0.281]
 }
 
+# --- NUEVO: Tabla de Propiedades de Conductores de Cobre AWG ---
+# Fuente: tabla de calibres AWG con diámetro, sección y peso por metro (g/m)
+# Clave: Calibre AWG (str), Valor: diccionario con propiedades
+awg_conductors_db = {
+    '250 MCM': {'diametro_mm': 12.70, 'seccion_mm2': 126.6, 'peso_g_m': 1126},
+    '4/0': {'diametro_mm': 11.70, 'seccion_mm2': 107.4, 'peso_g_m': 953},
+    '3/0': {'diametro_mm': 10.40, 'seccion_mm2': 85.03, 'peso_g_m': 756},
+    '2/0': {'diametro_mm': 9.27, 'seccion_mm2': 67.4, 'peso_g_m': 600},
+    '1/0': {'diametro_mm': 8.26, 'seccion_mm2': 53.5, 'peso_g_m': 476},
+    '1':   {'diametro_mm': 7.35, 'seccion_mm2': 42.4, 'peso_g_m': 377},
+    '2':   {'diametro_mm': 6.54, 'seccion_mm2': 33.6, 'peso_g_m': 299},
+    '3':   {'diametro_mm': 5.83, 'seccion_mm2': 26.6, 'peso_g_m': 237},
+    '4':   {'diametro_mm': 5.18, 'seccion_mm2': 21.1, 'peso_g_m': 188},
+    '5':   {'diametro_mm': 4.62, 'seccion_mm2': 16.8, 'peso_g_m': 149},
+    '6':   {'diametro_mm': 4.11, 'seccion_mm2': 13.3, 'peso_g_m': 118},
+    '7':   {'diametro_mm': 3.66, 'seccion_mm2': 10.5, 'peso_g_m': 93.8},
+    '8':   {'diametro_mm': 3.25, 'seccion_mm2': 8.3, 'peso_g_m': 74.38},
+    '9':   {'diametro_mm': 2.89, 'seccion_mm2': 6.59, 'peso_g_m': 58.6},
+    '10':  {'diametro_mm': 2.59, 'seccion_mm2': 5.27, 'peso_g_m': 46.9},
+    '11':  {'diametro_mm': 2.30, 'seccion_mm2': 4.17, 'peso_g_m': 37.1},
+    '12':  {'diametro_mm': 2.05, 'seccion_mm2': 3.31, 'peso_g_m': 29.4},
+    '13':  {'diametro_mm': 1.83, 'seccion_mm2': 2.63, 'peso_g_m': 23.4},
+    '14':  {'diametro_mm': 1.63, 'seccion_mm2': 2.08, 'peso_g_m': 18.5},
+    '15':  {'diametro_mm': 1.45, 'seccion_mm2': 1.65, 'peso_g_m': 14.7},
+    '16':  {'diametro_mm': 1.29, 'seccion_mm2': 1.31, 'peso_g_m': 11.6},
+    '17':  {'diametro_mm': 1.15, 'seccion_mm2': 1.04, 'peso_g_m': 9.24},
+    '18':  {'diametro_mm': 1.02, 'seccion_mm2': 0.821, 'peso_g_m': 7.32},
+    '19':  {'diametro_mm': 0.91, 'seccion_mm2': 0.654, 'peso_g_m': 5.8},
+    '20':  {'diametro_mm': 0.81, 'seccion_mm2': 0.517, 'peso_g_m': 4.61},
+    '21':  {'diametro_mm': 0.72, 'seccion_mm2': 0.411, 'peso_g_m': 3.66},
+    '22':  {'diametro_mm': 0.64, 'seccion_mm2': 0.324, 'peso_g_m': 2.88},
+    '23':  {'diametro_mm': 0.57, 'seccion_mm2': 0.259, 'peso_g_m': 2.31},
+    '24':  {'diametro_mm': 0.51, 'seccion_mm2': 0.205, 'peso_g_m': 1.81},
+    '25':  {'diametro_mm': 0.45, 'seccion_mm2': 0.162, 'peso_g_m': 1.44},
+    '26':  {'diametro_mm': 0.40, 'seccion_mm2': 0.128, 'peso_g_m': 1.14},
+    '27':  {'diametro_mm': 0.36, 'seccion_mm2': 0.102, 'peso_g_m': 0.908},
+    '28':  {'diametro_mm': 0.32, 'seccion_mm2': 0.080, 'peso_g_m': 0.715},
+    '29':  {'diametro_mm': 0.29, 'seccion_mm2': 0.065, 'peso_g_m': 0.575},
+    '30':  {'diametro_mm': 0.25, 'seccion_mm2': 0.0507, 'peso_g_m': 0.450},
+    '31':  {'diametro_mm': 0.23, 'seccion_mm2': 0.0401, 'peso_g_m': 0.357},
+    '32':  {'diametro_mm': 0.20, 'seccion_mm2': 0.0324, 'peso_g_m': 0.288},
+    '33':  {'diametro_mm': 0.18, 'seccion_mm2': 0.0255, 'peso_g_m': 0.227},
+    '34':  {'diametro_mm': 0.16, 'seccion_mm2': 0.0201, 'peso_g_m': 0.179},
+    '35':  {'diametro_mm': 0.14, 'seccion_mm2': 0.0190, 'peso_g_m': 0.141},
+    '36':  {'diametro_mm': 0.13, 'seccion_mm2': 0.0127, 'peso_g_m': 0.113},
+    '37':  {'diametro_mm': 0.11, 'seccion_mm2': 0.0103, 'peso_g_m': 0.091},
+    '38':  {'diametro_mm': 0.10, 'seccion_mm2': 0.0081, 'peso_g_m': 0.072},
+    '39':  {'diametro_mm': 0.09, 'seccion_mm2': 0.0062, 'peso_g_m': 0.055},
+    '40':  {'diametro_mm': 0.08, 'seccion_mm2': 0.0049, 'peso_g_m': 0.043}
+}
+
 # Alias público para compatibilidad con la UI (uso: from core.database import conexiones_normalizadas)
 conexiones_normalizadas = conexiones_normalizadas_db

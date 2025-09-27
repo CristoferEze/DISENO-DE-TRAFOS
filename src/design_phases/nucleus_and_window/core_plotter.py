@@ -49,4 +49,5 @@ def generate_core_plot(d, output_dir='temp'):
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
     
-    return output_path
+    # Devolver una lista para mantener una API consistente (posible expansión a múltiples imágenes)
+    return [output_path]

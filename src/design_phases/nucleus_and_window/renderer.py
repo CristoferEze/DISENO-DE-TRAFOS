@@ -3,7 +3,7 @@
 
 from pylatex import Section, Subsection, Math, Command, Figure
 from pylatex.utils import NoEscape
-from . import core_plotter, lamination_plotter
+import os
 
 def run(doc, d, add_step):
     """Añade la sección de reporte de esta fase al documento LaTeX."""
@@ -27,6 +27,7 @@ def run(doc, d, add_step):
                 doc.append("No hay dimensiones calculadas.")
             else:
                 for i, (ancho, espesor) in enumerate(zip(d.anchos, d.espesores)):
+                    # Corregido el error de tipeo 'espor' a 'espesor'
                     linea = f"\\textbullet\\ Ancho $a_{{{i+1}}}$: {ancho:.2f} cm, Espesor $e_{{{i+1}}}$: {espesor:.2f} cm"
                     doc.append(NoEscape(linea))
                     doc.append(Command('newline'))
@@ -35,35 +36,32 @@ def run(doc, d, add_step):
                 doc.append(NoEscape(r"Área Neta de Verificación: \\"))
                 doc.append(Math(data=[NoEscape(f"A_{{n,verif}} = {d.An_verificacion:.2f} \\; \\mathrm{{cm^2}} \\approx {d.An:.2f} \\; \\mathrm{{cm^2}}")], escape=False))
                 
-                # --- AÑADIR LOS GRÁFICOS DEL NÚCLEO ---
+                # --- AÑADIR LOS GRÁFICOS (SOLUCIÓN DEFINITIVA) ---
                 try:
-                    # Preferir rutas proporcionadas por app_view (temp dir). Si no existen, generarlas.
-                    if getattr(d, 'core_plot_path', None):
-                        core_path = d.core_plot_path.replace('\\', '/')
-                    else:
-                        core_path = core_plotter.generate_core_plot(d)
-                        core_path = core_path.replace('\\', '/')
-                    with doc.create(Figure(position='h!')) as fig:
-                        fig.add_image(NoEscape(core_path), width=NoEscape(r'0.6\textwidth'))
-                        fig.add_caption('Sección transversal del núcleo.')
-                    
-                    if getattr(d, 'lamination_plot_path', None):
-                        lam_path = d.lamination_plot_path.replace('\\', '/')
-                    else:
-                        lam_path = lamination_plotter.generate_lamination_plot(d)
-                        lam_path = lam_path.replace('\\', '/')
-                    with doc.create(Figure(position='h!')) as fig:
-                        fig.add_image(NoEscape(lam_path), width=NoEscape(r'0.7\textwidth'))
-                        fig.add_caption('Dimensiones de las piezas de laminación.')
+                    core_full_path = getattr(d, 'core_plot_path', None) or getattr(d, 'core_plot_filename', None)
+                    if core_full_path:
+                        # USA os.path.basename PARA EXTRAER SOLO EL NOMBRE DEL ARCHIVO
+                        core_basename = os.path.basename(core_full_path)
+                        with doc.create(Figure(position='h!')) as fig:
+                            fig.add_image(core_basename, width=NoEscape(r'0.6\textwidth'))
+                            fig.add_caption('Sección transversal del núcleo.')
+
+                    lam_full_path = getattr(d, 'lamination_plot_path', None) or getattr(d, 'lamination_plot_filename', None)
+                    if lam_full_path:
+                        # HACE LO MISMO PARA EL OTRO GRÁFICO
+                        lam_basename = os.path.basename(lam_full_path)
+                        with doc.create(Figure(position='h!')) as fig:
+                            fig.add_image(lam_basename, width=NoEscape(r'0.7\textwidth'))
+                            fig.add_caption('Dimensiones de las piezas de laminación.')
 
                 except Exception as e:
-                    doc.append(NoEscape(f"\\textit{{Error al generar gráficos: {e}}}"))
+                    doc.append(NoEscape(fr"\textit{{Error al incluir gráficos: {e}}}"))
 
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
         
         with doc.create(Subsection("Dimensiones de la Ventana", numbering=False)):
             S_VA_str = f"{d.S*1000:,.0f}"
-            An_str = f"{d.An:.3f}" # Usamos formato flotante para que quepa mejor
+            An_str = f"{d.An:.3f}"
             add_step(doc, "Área Ventana ($A_w$)", r"A_w = \frac{S_{VA}}{3.33 \cdot f \cdot B_T \cdot J \cdot K_c \cdot A_n}", f"A_w = \\frac{{{S_VA_str}}}{{3.33 \\cdot {d.f} \\cdot {d.B_tesla:.2f} \\cdot {d.J:.2f} \\cdot {d.Kc:.4f} \\cdot {An_str}}}", f"A_w = {d.Aw:.2f}", "cm^2")
             add_step(doc, "Alto de Ventana (b)", r"b = \sqrt{R_w \cdot A_w}", f"b = \\sqrt{{{d.rel_rw:.2f} \\cdot {d.Aw:.2f}}}", f"b = {d.b:.2f}", "cm")
             add_step(doc, "Distancia entre Ejes (M)", r"M = \frac{A_w}{b} + D", f"M = \\frac{{{d.Aw:.2f}}}{{{d.b:.2f}}} + {d.D:.2f}", f"M = {d.M:.2f}", "cm")

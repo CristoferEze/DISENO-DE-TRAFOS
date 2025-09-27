@@ -4,7 +4,9 @@
 import math
 from design_phases.nucleus_and_window import calculation as nucleus_calc
 from design_phases.windings_and_taps import calculation as windings_calc
-from design_phases.weights_and_losses import calculation as weights_calc
+from design_phases.core_and_lamination_weights import calculation as core_weights_calc
+from design_phases.losses_and_performance import calculation as losses_perf_calc
+from design_phases.daily_performance import calculation as daily_perf_calc
 
 class DisenoTransformador:
     """
@@ -26,6 +28,8 @@ class DisenoTransformador:
         self.B_man = kwargs.get('b_man')
         self.C_man = kwargs.get('c_man')
         self.Kc_man = kwargs.get('kc_man')
+        # Nuevo: tipo de corte para los plotters ('Recto' o 'Diagonal')
+        self.cut_type = kwargs.get('cut_type', 'Recto')
         self._inicializar_propiedades()
 
     def _inicializar_propiedades(self):
@@ -64,7 +68,15 @@ class DisenoTransformador:
         en el orden correcto.
         """
         nucleus_calc.run(self)
+
+        # Devanados y TAPs (ahora también calcula peso del cobre por bobinado)
         windings_calc.run(self)
         
-        # Nueva fase: cálculo de pesos y pérdidas
-        weights_calc.run(self)
+        # Núcleo: peso detallado por escalón / laminaciones
+        core_weights_calc.run(self)
+
+        # Pérdidas y rendimiento (usa Qc por bobinado y Qr detallado)
+        losses_perf_calc.run(self)
+
+        # Rendimiento diario (usa d.ciclo_carga si está presente)
+        daily_perf_calc.run(self)
