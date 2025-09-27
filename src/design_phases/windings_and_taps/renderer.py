@@ -1,9 +1,8 @@
 # src/design_phases/windings_and_taps/renderer.py
 # -*- coding: utf-8 -*-
 
-from pylatex import Section, Subsection
+from pylatex import Section, Subsection, Command, Itemize
 from pylatex.utils import NoEscape
-from pylatex import Command
 
 def run(doc, d, add_step):
     """Añade la sección de reporte de devanados al documento LaTeX."""
@@ -18,33 +17,32 @@ def run(doc, d, add_step):
     with doc.create(Section('Resultados por Toma (TAPs)', numbering=False)):
         # Número de espiras por toma
         with doc.create(Subsection("Número de Espiras en Primario", numbering=False)):
-            for pct in sorted(d.tap_data.keys(), reverse=True):
-                data = d.tap_data[pct]
-                linea_tap = f"\\textbullet\\ Toma ({pct:+.1f}\\%) : V\\_linea = {data['Vlinea']:.0f} V, N\\_espiras = {data['N_espiras']}"
-                doc.append(NoEscape(linea_tap))
-                doc.append(Command('newline'))
+            with doc.create(Itemize()) as itemize:
+                for pct in sorted(d.tap_data.keys(), reverse=True):
+                    data = d.tap_data[pct]
+                    linea_tap = f"Toma ({pct:+.1f}\\%) : V\\_linea = {data['Vlinea']:.0f} V, N\\_espiras = {data['N_espiras']}"
+                    itemize.add_item(NoEscape(linea_tap))
         
         # Corrientes de fase por toma
         if getattr(d, 'tap_currents', None):
             doc.append(Command('vspace', '1em'))
             with doc.create(Subsection("Corriente de Fase en Primario por Toma", numbering=False)):
-                for pct in sorted(d.tap_currents.keys(), reverse=True):
-                    current = d.tap_currents[pct]
-                    linea_curr = f"\\textbullet\\ Toma ({pct:+.1f}\\%) : $I_{{1,fase}} = {current:.2f}$ A"
-                    doc.append(NoEscape(linea_curr))
-                    doc.append(Command('newline'))
+                with doc.create(Itemize()) as itemize:
+                    for pct in sorted(d.tap_currents.keys(), reverse=True):
+                        current = d.tap_currents[pct]
+                        linea_curr = f"Toma ({pct:+.1f}\\%) : $I_{{1,fase}} = {current:.2f}$ A"
+                        itemize.add_item(NoEscape(linea_curr))
 
         # Distribución de espiras
         if getattr(d, 'tap_distribution', None) and d.tap_distribution:
             dist = d.tap_distribution
             doc.append(Command('vspace', '1em'))
             with doc.create(Subsection("Distribución de Espiras del Devanado Primario", numbering=False)):
-                doc.append(NoEscape(f"\\textbullet\\ Sección H1 (inicio) a tap {dist['taps'][0]['from']:+.1f}\\%: {dist['principal_start']} espiras"))
-                doc.append(Command('newline'))
-                for tap_info in dist['taps']:
-                    doc.append(NoEscape(f"\\textbullet\\ De tap {tap_info['from']:+.1f}\\% a tap {tap_info['to']:+.1f}\\%: {tap_info['turns']} espiras"))
-                    doc.append(Command('newline'))
-                doc.append(NoEscape(f"\\textbullet\\ De tap {dist['taps'][-1]['to']:+.1f}\\% a H2 (final): {dist['principal_end']} espiras"))
-                doc.append(Command('newline'))
+                with doc.create(Itemize()) as itemize:
+                    itemize.add_item(NoEscape(f"Sección H1 (inicio) a tap {dist['taps'][0]['from']:+.1f}\\%: {dist['principal_start']} espiras"))
+                    for tap_info in dist['taps']:
+                        itemize.add_item(NoEscape(f"De tap {tap_info['from']:+.1f}\\% a tap {tap_info['to']:+.1f}\\%: {tap_info['turns']} espiras"))
+                    itemize.add_item(NoEscape(f"De tap {dist['taps'][-1]['to']:+.1f}\\% a H2 (final): {dist['principal_end']} espiras"))
+                
                 doc.append(Command('vspace', '0.5em'))
                 doc.append(NoEscape(f"Verificación Total: {dist['total_check']} (debe ser igual a N\\_max={dist['N_max']})"))

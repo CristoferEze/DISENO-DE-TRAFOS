@@ -7,6 +7,8 @@ import traceback
 import tempfile
 from pylatex import Document
 from pdf2image import convert_from_path
+import pytinytex
+import threading 
 
 from core.engine import DisenoTransformador
 from core.database import acero_electrico_db, conexiones_normalizadas
@@ -20,7 +22,6 @@ class Application:
 
     def _crear_container_datos_principales(self):
         tipos_de_acero = list(acero_electrico_db.keys())
-        # Valor por defecto seguro para conexiones
         conn_default = conexiones_normalizadas[0] if conexiones_normalizadas else ''
         return sg.Frame('Datos Principales del Transformador', [
             [sg.Text('Tipo:', size=(18,1)),
@@ -29,10 +30,8 @@ class Application:
             [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10500', key='-E1-')],
             [sg.Text('Tensión Secundario (V):', size=(18,1)), sg.Input('400', key='-E2-')],
             [sg.Text('Frecuencia (Hz):', size=(18,1)), sg.Input('60', key='-FREQ-')],
-            # Conexión como Combo (visible sólo para trifásico)
             [sg.Text('Conexión:', size=(18,1), key='-LBL-CONN-'),
              sg.Combo(conexiones_normalizadas, default_value=conn_default, key='-CONN-', readonly=True, size=(22,1))],
-            # TAPs (visible sólo para trifásico)
             [sg.Text('TAPs (%):', size=(18,1), key='-LBL-TAPS-'),
              sg.Input('2.5, 5.0', key='-TAPS-', tooltip='Separados por coma. Dejar vacío si no hay.')],
             [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')]
@@ -67,7 +66,13 @@ class Application:
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 pdf_basename = os.path.join(temp_dir, 'reporte')
-                latex_doc.generate_pdf(pdf_basename, clean_tex=True, compiler='pdflatex')
+                
+                compiler_path = pytinytex.get_pdf_latex_engine()
+                if not compiler_path or not os.path.exists(compiler_path):
+                    raise RuntimeError("El compilador de TinyTeX no fue encontrado. Intente reiniciar la aplicación.")
+
+                latex_doc.generate_pdf(pdf_basename, clean_tex=True, compiler=compiler_path)
+                
                 pdf_path = f"{pdf_basename}.pdf"
                 images = convert_from_path(pdf_path, dpi=dpi)
                 if images:
@@ -76,21 +81,16 @@ class Application:
                 else:
                     raise RuntimeError("pdf2image no pudo convertir el archivo PDF.")
             except Exception as e:
-                print("Error al renderizar con PyLaTeX:", file=sys.stderr)
+                print("Error al renderizar con PyLaTeX/TinyTeX:", file=sys.stderr)
                 traceback.print_exc()
-                sg.popup_error("Error de LaTeX", f"No se pudo compilar el documento.\nError: {e}\n\nRevise la terminal.")
+                print(f"Error de LaTeX: No se pudo compilar el documento. Error: {e}", file=sys.stderr)
                 return None
 
     def _manejar_calculo(self, values):
         try:
             self.last_report_path = None
             self.window['-EXPORT-'].update(disabled=True)
-            
-            # --- CORRECCIÓN ---
-            # Las líneas que buscaban y borraban '-GRAPH-' han sido eliminadas.
-            # Limpiamos la imagen actualizando su contenido con una ruta vacía.
             self.window['-IMAGE-'].update(filename='')
-            # --- FIN DE LA CORRECCIÓN ---
 
             params = { 'tipo': values['-TIPO-'], 'S': float(values['-S_KVA-']), 'E1': float(values['-E1-']), 'E2': float(values['-E2-']), 'f': float(values['-FREQ-']), 'acero': values['-ACERO-'], 'conn': values['-CONN-'], 'taps': [float(t.strip()) for t in values['-TAPS-'].split(',')] if values['-TAPS-'].strip() else [], 'rel_rw': float(values['-RW-']), 'b_man': float(values['-B_MANUAL-']) if values['-B_MANUAL-'] else None, 'c_man': float(values['-C_MANUAL-']) if values['-C_MANUAL-'] else None, 'kc_man': float(values['-KC_MANUAL-']) if values['-KC_MANUAL-'] else None }
 
@@ -105,7 +105,7 @@ class Application:
             filename = f"Reporte_{s_kva}kVA.png"
             filepath = os.path.join(export_dir, filename)
             
-            sg.popup_quick_message('Compilando con PyLaTeX y generando imagen...', background_color='blue', text_color='white')
+            sg.popup_quick_message('Compilando con TinyTeX y generando imagen...', background_color='blue', text_color='white')
             saved = self._render_latex_to_file(latex_doc, filepath)
 
             if saved:
@@ -117,19 +117,17 @@ class Application:
                 self.window['-EXPORT-'].update(disabled=False, text="Ver Archivo")
 
         except ValueError as e:
-            # Log en terminal y volcado de traceback para facilitar depuración
             print("Error de Entrada: valores numéricos inválidos.", file=sys.stderr)
             traceback.print_exc()
-            sg.popup_error('Error de Entrada', 'Asegúrese de que todos los campos numéricos contengan valores válidos. Revise la terminal para más detalles.')
+            print('Error de Entrada: Asegúrese de que todos los campos numéricos contengan valores válidos. Revise la terminal para más detalles.', file=sys.stderr)
         except Exception as e:
-            # Log completo en terminal para excepciones inesperadas
             print("Error inesperado durante el cálculo:", file=sys.stderr)
             traceback.print_exc()
-            sg.popup_error('Ocurrió un Error', f'No se pudo completar el proceso.\n\nDetalle: {e}')
+            print(f'Ocurrió un Error: No se pudo completar el proceso. Detalle: {e}', file=sys.stderr)
             
     def _manejar_exportacion(self):
         if not self.last_report_path or not os.path.exists(self.last_report_path):
-            sg.popup_error("Archivo de reporte no encontrado.", "Por favor, genere un cálculo primero.")
+            print("Archivo de reporte no encontrado. Por favor, genere un cálculo primero.", file=sys.stderr)
             return
         try:
             full_path = os.path.abspath(self.last_report_path)
@@ -137,7 +135,7 @@ class Application:
             if respuesta == 'Yes':
                 os.startfile(os.path.dirname(full_path))
         except Exception as e:
-            sg.popup_error("Error", f"No se pudo abrir la carpeta.\n\nDetalle: {e}")
+            print(f"No se pudo abrir la carpeta. Detalle: {e}", file=sys.stderr)
 
     def run(self):
         while True:
@@ -145,22 +143,18 @@ class Application:
             if event in (sg.WIN_CLOSED, 'Salir'):
                 break
 
-            # Mostrar/ocultar campos según tipo (trifásico/monofásico)
             if event == '-TIPO-':
                 es_trifasico = (values.get('-TIPO-') == 'trifasico')
-                # Actualizar visibilidad de los elementos de conexión y taps
                 try:
                     self.window['-LBL-CONN-'].update(visible=es_trifasico)
                     self.window['-CONN-'].update(visible=es_trifasico)
                     self.window['-LBL-TAPS-'].update(visible=es_trifasico)
                     self.window['-TAPS-'].update(visible=es_trifasico)
                 except Exception:
-                    # Si las claves no existen por alguna razón, ignorar el fallo de visibilidad
                     pass
                 continue
 
             elif event == 'Calcular Diseño':
-                # Si es monofásico, ignorar los valores de conexión y taps
                 if values.get('-TIPO-') == 'monofasico':
                     values['-CONN-'] = ''
                     values['-TAPS-'] = ''

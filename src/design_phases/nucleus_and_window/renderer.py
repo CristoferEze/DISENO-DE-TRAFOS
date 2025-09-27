@@ -1,7 +1,7 @@
 # src/design_phases/nucleus_and_window/renderer.py
 # -*- coding: utf-8 -*-
 
-from pylatex import Section, Subsection, Math, Command
+from pylatex import Section, Subsection, Math, Command, Itemize
 from pylatex.utils import NoEscape
 # Este renderer recibirá una función add_step para añadir bloques consistentes.
 def run(doc, d, add_step):
@@ -27,9 +27,9 @@ def run(doc, d, add_step):
             if not getattr(d, 'anchos', None) or not getattr(d, 'espesores', None):
                 doc.append(NoEscape("No hay dimensiones calculadas para los escalones."))
             else:
-                for i, (ancho, espesor) in enumerate(zip(d.anchos, d.espesores)):
-                    doc.append(NoEscape(f"Ancho $a_{{{i+1}}}$: {ancho:.2f} cm, Espesor $e_{{{i+1}}}$: {espesor:.2f} cm"))
-                    doc.append(Command('newline'))
+                with doc.create(Itemize()) as itemize:
+                    for i, (ancho, espesor) in enumerate(zip(d.anchos, d.espesores)):
+                        itemize.add_item(NoEscape(f"Ancho $a_{{{i+1}}}$: {ancho:.2f} cm, Espesor $e_{{{i+1}}}$: {espesor:.2f} cm"))
                 
                 doc.append(Command('vspace', '0.5em'))
                 doc.append(NoEscape(r"Área Neta de Verificación: \\"))

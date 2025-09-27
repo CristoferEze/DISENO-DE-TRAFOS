@@ -1,20 +1,30 @@
 # src/ui/report_builder.py
 # -*- coding: utf-8 -*-
 
-from pylatex import Document, Subsection, Math, Command
+from pylatex import Document, Subsection, Command
+from pylatex.math import Alignat
 from pylatex.utils import NoEscape
 
 def add_calculation_step(doc, titulo, formula, valores, resultado, unidad):
     """
-    Función auxiliar para añadir un bloque de cálculo estandarizado.
+    Función auxiliar para añadir un bloque de cálculo estandarizado usando
+    un entorno align* (Alignat) para mejor formato y simplicidad.
     """
     unidad_safe = unidad if unidad is not None else ""
     unidad_latex = f"\\mathrm{{{unidad_safe.replace('^2', '^{{2}}')}}}" if unidad_safe else ""
     
     with doc.create(Subsection(NoEscape(titulo), numbering=False)):
-        doc.append(Math(data=[NoEscape(formula)], escape=False))
-        doc.append(Math(data=[NoEscape(valores)], escape=False))
-        doc.append(Math(data=[NoEscape(f"{resultado} \\; {unidad_latex}")], escape=False))
+        # Usamos Alignat para alinear las tres líneas de cálculo en el signo '='
+        with doc.create(Alignat(numbering=False, escape=False)) as agn:
+            # Dividimos cada línea en parte izquierda y derecha para alinear
+            formula_lhs, formula_rhs = formula.split('=', 1)
+            valores_lhs, valores_rhs = valores.split('=', 1)
+            resultado_lhs, resultado_rhs = resultado.split('=', 1)
+
+            # Añadimos las líneas al entorno, alineando en '&=' y terminando con '\\'
+            agn.append(f'{formula_lhs.strip()} &= {formula_rhs.strip()} \\\\')
+            agn.append(f'{valores_lhs.strip()} &= {valores_rhs.strip()} \\\\')
+            agn.append(f'{resultado_lhs.strip()} &= {resultado_rhs.strip()} \\; {unidad_latex}')
     
     doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
 
