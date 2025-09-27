@@ -1,0 +1,44 @@
+# =================================================================
+# Gitignore para el Proyecto Calculadora de Transformadores
+# =================================================================
+
+# --- Entorno Virtual de Python ---
+# Nunca subas el entorno virtual al repositorio.
+/venv/
+
+# --- Artefactos de Compilación de PyInstaller y NSIS ---
+# Carpetas temporales y de distribución generadas al compilar.
+/build/
+/dist/
+*.spec
+*.exe
+
+# --- Carpetas de Salida y Temporales de la Aplicación ---
+# Generadas por la aplicación al ejecutarse o al crear reportes.
+/exports/
+/temp/
+
+# --- Python Caches y Archivos Compilados ---
+# Generados automáticamente por Python.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Archivos Comprimidos y Dependencias ---
+# No se deben guardar archivos zip/rar o instaladores en el repositorio.
+*.zip
+*.rar
+
+# --- Archivos Temporales de Microsoft Office ---
+# Ignora los archivos de bloqueo de Excel, Word, etc. (los que empiezan con ~$)
+~$*
+
+# --- Secretos y Variables de Entorno ---
+# ¡NUNCA subas tokens o contraseñas al repositorio!
+# Para tu script publish.bat
+.env
+
+texas.py
+1ER_EXAM.md
+transformador.png
