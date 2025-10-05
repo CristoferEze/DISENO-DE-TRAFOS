@@ -16,12 +16,14 @@ def generate_connection_diagram(d, output_dir='temp'):
     
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_xlim(0, 10)
-    ax.set_ylim(0, 8)
+    # Ampliar el límite inferior del eje Y para que elementos con y negativas sean visibles
+    ax.set_ylim(-2, 8.5)  # antes (0, 8)
     ax.axis('off')
 
     conn_str = getattr(d, 'conn', 'Dyn5').upper()
     title = f'Diagrama de Conexionado - {conn_str}' if getattr(d, 'fases', 3) == 3 else 'Diagrama de Conexionado - Monofásico'
-    ax.set_title(title, fontsize=16, fontweight='bold', y=1.02)
+    # Ajustar la posición vertical del título a los nuevos límites
+    ax.set_title(title, fontsize=16, fontweight='bold', y=0.98)
     
     if getattr(d, 'fases', 3) == 3:
         three_phase_drawer.draw(ax, d)

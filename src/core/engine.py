@@ -44,6 +44,9 @@ class DisenoTransformador:
         self.Pf_opcional = kwargs.get('pf_opcional')
         self.rho_acero_opcional = kwargs.get('rho_acero_opcional')
         self.rho_cobre_opcional = kwargs.get('rho_cobre_opcional')
+        # Asegurar que el ciclo de carga pasado en kwargs quede registrado en el objeto.
+        # Puede ser None o una lista de tuplas (carga_frac, horas).
+        self.ciclo_carga = kwargs.get('ciclo_carga', None)
         self._inicializar_propiedades()
 
     def _inicializar_propiedades(self):
