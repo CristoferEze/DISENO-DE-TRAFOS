@@ -23,17 +23,29 @@ def _find_steel_data(steel_key):
 
 def run(d):
     """Realiza los cálculos del núcleo y la ventana."""
-    # Lógica de _calcular_parametros_base
-    d.B_kgauss = d.B_man if d.B_man else utils.get_promedio(db.densidad_flujo_db[utils.sel_clave(db.densidad_flujo_db, d.S)])
+    # Lógica de _calcular_parametros_base (ahora considera valores opcionales)
+    if d.usar_valores_opcionales and d.B_opcional:
+        d.B_kgauss = d.B_opcional
+    else:
+        d.B_kgauss = d.B_man if d.B_man else utils.get_promedio(db.densidad_flujo_db[utils.sel_clave(db.densidad_flujo_db, d.S)])
+    
     d.B_tesla = d.B_kgauss / 10.0
-    d.J = utils.get_promedio(db.densidad_corriente_db[d.refrig]['Cobre'])
+    
+    if d.usar_valores_opcionales and d.J_opcional:
+        d.J = d.J_opcional
+    else:
+        d.J = utils.get_promedio(db.densidad_corriente_db[d.refrig]['Cobre'])
     
     # --- INICIO DE LA CORRECCIÓN ---
     # En lugar de acceder directamente al diccionario, usamos la función auxiliar
     # para encontrar los datos del acero de manera segura.
     try:
         steel_data = _find_steel_data(d.acero)
-        d.fa = steel_data['fa']
+        # Usar valor opcional de fa si está disponible
+        if d.usar_valores_opcionales and d.fa_opcional:
+            d.fa = d.fa_opcional
+        else:
+            d.fa = steel_data['fa']
         d.merma_id = steel_data['merma']
     except KeyError as e:
         # Propagamos el error con un mensaje más descriptivo si la función falla.
@@ -41,18 +53,39 @@ def run(d):
     # --- FIN DE LA CORRECCIÓN ---
     
     tipo_nucleo_key = f"{d.tipo}_columnas"
-    d.C = d.C_man if d.C_man else utils.get_promedio(db.constante_flujo_db[tipo_nucleo_key])
+    if d.usar_valores_opcionales and d.C_opcional:
+        d.C = d.C_opcional
+    else:
+        d.C = d.C_man if d.C_man else utils.get_promedio(db.constante_flujo_db[tipo_nucleo_key])
     
     # Lógica de _calcular_tensiones_fase (robusta frente a entradas inválidas)
     if d.fases == 3:
         conn_str = (d.conn or '').upper()
-        if '-' in conn_str:
-            parts = conn_str.split('-', 1)
-            d.conn1, d.conn2 = parts[0], parts[1]
-        elif conn_str:
-            d.conn1 = d.conn2 = conn_str
+        
+        # Parsear conexiones del tipo "Dyn5", "D-Yn", etc.
+        if conn_str and len(conn_str) >= 3:
+            # Para conexiones tipo "Dyn5", "Ynd11", etc.
+            if conn_str[0] in ['D', 'Y'] and len(conn_str) > 2:
+                d.conn1 = conn_str[0]  # Primera letra (D o Y)
+                # Buscar la segunda conexión (después de la primera letra)
+                resto = conn_str[1:]
+                if resto.startswith('yn') or resto.startswith('YN'):
+                    d.conn2 = 'YN'
+                elif resto.startswith('y') or resto.startswith('Y'):
+                    d.conn2 = 'Y'
+                elif resto.startswith('d') or resto.startswith('D'):
+                    d.conn2 = 'D'
+                else:
+                    d.conn2 = 'YN'  # Default
+            elif '-' in conn_str:
+                parts = conn_str.split('-', 1)
+                d.conn1, d.conn2 = parts[0], parts[1]
+            else:
+                d.conn1 = d.conn2 = conn_str
         else:
             d.conn1, d.conn2 = 'D', 'YN'
+            
+        # Calcular tensiones de fase correctamente
         d.E1_fase = d.E1_linea if 'D' in d.conn1 else d.E1_linea / math.sqrt(3)
         d.E2_fase = d.E2_linea if 'D' in d.conn2 else d.E2_linea / math.sqrt(3)
     else:
@@ -60,21 +93,52 @@ def run(d):
         d.E1_fase = d.E1_linea
         d.E2_fase = d.E2_linea
 
-    # Lógica de _calcular_kc
-    if d.Kc_man: d.Kc = d.Kc_man
+    # Lógica de _calcular_kc (ahora considera valores opcionales y redondeo)
+    if d.usar_valores_opcionales and d.Kc_opcional:
+        d.Kc_original = d.Kc_opcional
+    elif d.Kc_man:
+        d.Kc_original = d.Kc_man
     else:
         E1_kv = d.E1_fase / 1000.0
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
-        d.Kc = (kc_n / (30 + E1_kv)) * 1.15
+        d.Kc_original = (kc_n / (30 + E1_kv)) * 1.15
+    
+    # Redondear Kc según configuración
+    if getattr(d, 'redondear_2_decimales', False):
+        d.Kc = round(d.Kc_original, 2)
+    else:
+        d.Kc = round(d.Kc_original, 4)
 
     # Lógica de _calcular_nucleo
-    d.flujo = d.C * math.sqrt(d.S / d.f) * 1e6
+    d.flujo_original = d.C * math.sqrt(d.S / d.f) * 1e6
+    # Convertir a kilolineas y redondear
+    d.flujo_kilolineas = d.flujo_original / 1000
+    if getattr(d, 'redondear_2_decimales', False):
+        d.flujo_kilolineas = round(d.flujo_kilolineas, 2)
+        d.flujo = d.flujo_kilolineas * 1000  # Usar valor redondeado para cálculos
+    else:
+        d.flujo_kilolineas = round(d.flujo_kilolineas, 1)
+        d.flujo = d.flujo_original  # Usar valor original para más precisión
+    
     d.An = d.flujo / (d.B_kgauss * 1000)
     d.Ab = d.An / d.fa
     d.num_escalones = d._num_esc(d.Ab)
-    db_kr_acero = db.coeficiente_kr_db.get(d.merma_id, {})
-    db_kr_esc = db_kr_acero.get(d.num_escalones, {})
-    d.Kr = db_kr_esc[utils.sel_clave(db_kr_esc, d.S)]
+    
+    # Usar valor opcional de Kr si está disponible
+    if d.usar_valores_opcionales and d.Kr_opcional:
+        d.Kr_original = d.Kr_opcional
+    else:
+        db_kr_acero = db.coeficiente_kr_db.get(d.merma_id, {})
+        db_kr_esc = db_kr_acero.get(d.num_escalones, {})
+        d.Kr_original = db_kr_esc[utils.sel_clave(db_kr_esc, d.S)]
+    
+    # Redondear Kr según configuración
+    if getattr(d, 'redondear_2_decimales', False):
+        d.Kr = round(d.Kr_original, 2)
+    else:
+        d.Kr = round(d.Kr_original, 3)
+    
+    # Calcular diámetro circunscrito D usando valores redondeados
     d.D = 2 * math.sqrt(d.An / (math.pi * d.Kr))
     d.anchos = [factor * d.D for factor in db.dimensiones_escalones_db.get(d.num_escalones, [])]
     d.espesores = []

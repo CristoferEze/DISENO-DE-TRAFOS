@@ -15,12 +15,12 @@ class DisenoTransformador:
     """
     def __init__(self, **kwargs):
         self.tipo = kwargs.get('tipo', 'trifasico')
-        self.S = float(kwargs.get('S', 25))
-        self.E1_linea = float(kwargs.get('E1', 10500))
+        self.S = float(kwargs.get('S', 25))  # Cambiar valor inicial a 50 kVA
+        self.E1_linea = float(kwargs.get('E1', 10000))  # Cambiar valor inicial a 13200 V
         self.E2_linea = float(kwargs.get('E2', 400))
         self.f = float(kwargs.get('f', 60))
-        self.acero = kwargs.get('acero', '30M5')
-        self.conn = kwargs.get('conn', 'D-Yn')
+        self.acero = kwargs.get('acero', '35M6')
+        self.conn = kwargs.get('conn', 'Dyn5')  # Cambiar conexión por defecto a Dyn5
         self.taps_pct = kwargs.get('taps', [])
         self.rel_rw = float(kwargs.get('rel_rw', 3.0))
         self.refrig = 'ONAN'
@@ -30,6 +30,20 @@ class DisenoTransformador:
         self.Kc_man = kwargs.get('kc_man')
         # Nuevo: tipo de corte para los plotters ('Recto' o 'Diagonal')
         self.cut_type = kwargs.get('cut_type', 'Recto')
+        # Nuevos: opciones de redondeo y valores opcionales
+        self.redondear_2_decimales = kwargs.get('redondear_2_decimales', False)
+        self.usar_valores_opcionales = kwargs.get('usar_valores_opcionales', False)
+        # Valores opcionales de parámetros de diseño
+        self.B_opcional = kwargs.get('b_opcional')
+        self.C_opcional = kwargs.get('c_opcional')
+        self.Kc_opcional = kwargs.get('kc_opcional')
+        self.J_opcional = kwargs.get('j_opcional')
+        # Valores opcionales de parámetros de tabla
+        self.fa_opcional = kwargs.get('fa_opcional')
+        self.Kr_opcional = kwargs.get('kr_opcional')
+        self.Pf_opcional = kwargs.get('pf_opcional')
+        self.rho_acero_opcional = kwargs.get('rho_acero_opcional')
+        self.rho_cobre_opcional = kwargs.get('rho_cobre_opcional')
         self._inicializar_propiedades()
 
     def _inicializar_propiedades(self):

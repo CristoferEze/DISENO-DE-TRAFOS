@@ -6,7 +6,7 @@ def run(doc, d):
     if not getattr(d, 'detalles_ciclo', None):
         return
 
-    with doc.create(Section('Rendimiento Diario', numbering=False)):
+    with doc.create(Section('Análisis de Rendimiento Diario', numbering=False)):
 
         with doc.create(Subsection(NoEscape(r'Energía de Salida ($E_{salida}$)'), numbering=False)):
             for detalle in d.detalles_ciclo:

@@ -24,63 +24,76 @@ def draw(d, output_dir='temp', step_index=0):
     current_a_mm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0) * 10.0
     w = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
 
-    # --- 2. DEFINICIÓN DE FORMAS (vértices) ---
-    # Pieza 1 (Columnas laterales): trapecio para encaje a 45°
-    h_col = b_mm + w
-    piece1_shape = [[0, 0], [w, w], [w, h_col], [0, h_col - w]]
+    # --- 2. DEFINICIÓN DE FORMAS CORREGIDAS (vértices) ---
+    # Corrigiendo las dimensiones para que coincidan con los cálculos
+    
+    # Pieza 1 (Columnas laterales): altura corregida para trifásico
+    h_col = b_mm + w  # Solo ventana + ancho de lámina
+    piece1_shape = [[0, 0], [w, 0], [w, h_col], [0, h_col]]
 
-    # Pieza 3 (Columna central): paralelogramo desplazado
-    h_center_col = b_mm + 2 * w
-    piece3_shape = [[w, 0], [0, w], [0, h_center_col - w], [w, h_center_col]]
+    # Pieza 3 (Columna central): altura igual a las laterales
+    piece3_shape = [[0, 0], [w, 0], [w, h_col], [0, h_col]]
 
-    # Pieza 2 (Yugo): perfil con ranuras formadas por triángulos/paralelogramos
-    yoke_len = 2 * c_mm + 3 * w
-    notch1_x = c_mm + w
-    notch2_x = 2 * c_mm + 2 * w
-    piece2_shape = [
-        [0, w], [notch1_x, w], [notch1_x + w, 0], [notch2_x, 0],
-        [notch2_x + w, w], [yoke_len, w], [yoke_len, 0], [0, 0]
-    ]
+    # Pieza 2 (Yugo): longitud corregida para trifásico
+    # Longitud = c + ancho_lámina (yugo corto)
+    yoke_len = c_mm + w
+    piece2_shape = [[0, 0], [yoke_len, 0], [yoke_len, w], [0, w]]
+    
+    # Pieza 4 (Yugo largo): longitud = 2*c + ancho_lámina
+    yoke_long_len = 2 * c_mm + w
+    piece4_shape = [[0, 0], [yoke_long_len, 0], [yoke_long_len, w], [0, w]]
 
-    # --- 3. DIBUJO DEL ENSAMBLE (posición final) ---
-    # Yugo inferior: usar piece2_shape invertida en Y para ajustarla debajo de las columnas
-    yoke_bottom = [[x, y - w] for x, y in piece2_shape]  # desplazar hacia abajo
-    ax_main.add_patch(patches.Polygon(yoke_bottom, closed=True, fc='w', ec='k'))
+    # --- 3. DIBUJO DEL ENSAMBLE CORREGIDO (posición final) ---
+    
+    # Yugo inferior izquierdo (Pieza 2)
+    ax_main.add_patch(patches.Polygon(piece2_shape, closed=True, fc='lightblue', ec='k'))
+    ax_main.text(yoke_len/2, w/2, '2', ha='center', va='center', fontsize=12)
 
-    # Columna izquierda (Pieza 1) posicionada sobre el yugo inferior
-    col_left = [[x, y] for x, y in piece1_shape]
-    col_left = [[x, y + w] for x, y in col_left]
-    ax_main.add_patch(patches.Polygon(col_left, closed=True, fc='w', ec='k'))
+    # Columna izquierda (Pieza 1)
+    col_left = [[x, y + w] for x, y in piece1_shape]
+    ax_main.add_patch(patches.Polygon(col_left, closed=True, fc='lightcoral', ec='k'))
+    ax_main.text(w/2, w + h_col/2, '1', ha='center', va='center', fontsize=12)
 
-    # Columna central (Pieza 3) desplazada en X por c_mm + w
-    x_center = c_mm + w
-    col_center = [[x + x_center, y] for x, y in piece3_shape]
-    ax_main.add_patch(patches.Polygon(col_center, closed=True, fc='w', ec='k'))
+    # Columna central (Pieza 3) desplazada en X
+    x_center = yoke_len
+    col_center = [[x + x_center, y + w] for x, y in piece3_shape]
+    ax_main.add_patch(patches.Polygon(col_center, closed=True, fc='lightgreen', ec='k'))
+    ax_main.text(x_center + w/2, w + h_col/2, '3', ha='center', va='center', fontsize=12)
 
-    # Columna derecha (Pieza 1 reflejada) desplazada en X por 2*(c_mm + w)
-    x_right = 2 * (c_mm + w)
-    col_right_reflected = [[w - x, y] for x, y in piece1_shape]  # reflejar horizontalmente
-    col_right = [[x + x_right, y + w] for x, y in col_right_reflected]
-    ax_main.add_patch(patches.Polygon(col_right, closed=True, fc='w', ec='k'))
+    # Yugo inferior derecho (Pieza 2)
+    x_right_yoke = x_center + w
+    yoke_right = [[x + x_right_yoke, y] for x, y in piece2_shape]
+    ax_main.add_patch(patches.Polygon(yoke_right, closed=True, fc='lightblue', ec='k'))
+    ax_main.text(x_right_yoke + yoke_len/2, w/2, '2', ha='center', va='center', fontsize=12)
 
-    # Yugo superior: usar piece2_shape elevado por la altura total de las columnas
-    y_top = b_mm + 2 * w
-    yoke_top = [[x, y + y_top] for x, y in piece2_shape]
-    ax_main.add_patch(patches.Polygon(yoke_top, closed=True, fc='w', ec='k'))
+    # Columna derecha (Pieza 1)
+    x_col_right = x_right_yoke + yoke_len
+    col_right = [[x + x_col_right, y + w] for x, y in piece1_shape]
+    ax_main.add_patch(patches.Polygon(col_right, closed=True, fc='lightcoral', ec='k'))
+    ax_main.text(x_col_right + w/2, w + h_col/2, '1', ha='center', va='center', fontsize=12)
+
+    # Yugo superior (Pieza 4 - yugo largo)
+    x_top_yoke = w
+    y_top = w + h_col
+    yoke_top = [[x + x_top_yoke, y + y_top] for x, y in piece4_shape]
+    ax_main.add_patch(patches.Polygon(yoke_top, closed=True, fc='lightyellow', ec='k'))
+    ax_main.text(x_top_yoke + yoke_long_len/2, y_top + w/2, '4', ha='center', va='center', fontsize=12)
 
     # Etiquetas y título
-    ax_main.set_title(f"Trifásico 45° - Escalón {step_index + 1}\nAncho de Lámina: {w:.1f} mm")
-    ax_main.text((yoke_len) / 2, (b_mm + w) / 2 + w, "Ventanas y columnas (vista ensamblada)", ha='center', va='center', fontsize=10, alpha=0.6)
+    ax_main.set_title(f"Trifásico Diagonal - Escalón {step_index + 1}\nAncho de Lámina: {w:.1f} mm")
 
-    # --- 4. DIBUJO DE PIEZAS INDIVIDUALES ---
-    ax1.set_title("Pieza 1 (Columna Lateral)")
-    ax1.add_patch(patches.Polygon(piece1_shape, closed=True, fc='w', ec='k'))
+    # --- 4. DIBUJO DE PIEZAS INDIVIDUALES CORREGIDAS ---
+    ax1.set_title(f"Pieza 1 (Columna): {h_col:.1f} × {w:.1f} mm")
+    ax1.add_patch(patches.Polygon(piece1_shape, closed=True, fc='lightcoral', ec='k'))
+    ax1.text(w/2, h_col/2, '1', ha='center', va='center', fontsize=14)
  
-    ax2.set_title("Pieza 2 (Yugo)")
-    ax2.add_patch(patches.Polygon(piece2_shape, closed=True, fc='w', ec='k'))
+    ax2.set_title(f"Pieza 2 (Yugo Corto): {yoke_len:.1f} × {w:.1f} mm")
+    ax2.add_patch(patches.Polygon(piece2_shape, closed=True, fc='lightblue', ec='k'))
+    ax2.text(yoke_len/2, w/2, '2', ha='center', va='center', fontsize=14)
  
-    ax3.set_title("Pieza 3 (Columna Central)")
-    ax3.add_patch(patches.Polygon(piece3_shape, closed=True, fc='w', ec='k'))
+    ax3.set_title(f"Pieza 3 (Yugo Largo): {yoke_long_len:.1f} × {w:.1f} mm")
+    ax3.add_patch(patches.Polygon(piece4_shape, closed=True, fc='lightyellow', ec='k'))
+    ax3.text(yoke_long_len/2, w/2, '3', ha='center', va='center', fontsize=14)
  
     # --- INICIO DE LA CORRECCIÓN ---
     # Aplicar configuraciones comunes a TODOS los subplots

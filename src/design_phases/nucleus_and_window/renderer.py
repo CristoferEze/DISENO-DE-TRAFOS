@@ -17,10 +17,25 @@ def run(doc, d, add_step):
 
         E1_kv = d.E1_fase / 1000.0
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
-        add_step(doc, "Coef. Plenitud Cobre ($K_c$)", r"K_c = \left( \frac{k_{c,n}}{30 + E_{1,kV}} \right) \times 1.15", f"K_c = \\left( \\frac{{{kc_n}}}{{30 + {E1_kv:.2f}}} \\right) \\times 1.15", f"K_c = {d.Kc:.4f}", "")
-        add_step(doc, r"Flujo Magnético ($\Phi$)", r"\Phi = C \cdot \sqrt{\frac{S}{f}} \cdot 10^6", f"\\Phi = {d.C:.2f} \\cdot \\sqrt{{\\frac{{{d.S}}}{{{d.f}}}}} \\cdot 10^6", f"\\Phi = {d.flujo:,.0f}", "lineas")
+        # Mostrar Kc original y redondeado
+        kc_display = f"K_c = {getattr(d, 'Kc_original', d.Kc):.4f} \\rightarrow {d.Kc}"
+        add_step(doc, "Coef. Plenitud Cobre ($K_c$)", r"K_c = \left( \frac{k_{c,n}}{30 + E_{1,kV}} \right) \times 1.15", f"K_c = \\left( \\frac{{{kc_n}}}{{30 + {E1_kv:.2f}}} \\right) \\times 1.15", kc_display, "")
+        
+        # Mostrar flujo magnético en kilolineas
+        flujo_display = f"\\Phi = {getattr(d, 'flujo_kilolineas', d.flujo/1000)}"
+        add_step(doc, r"Flujo Magnético ($\Phi$)", r"\Phi = C \cdot \sqrt{\frac{S}{f}} \cdot 10^3", f"\\Phi = {d.C:.2f} \\cdot \\sqrt{{\\frac{{{d.S}}}{{{d.f}}}}} \\cdot 10^3", flujo_display, "kilolineas")
+        
         add_step(doc, "Área Neta ($A_n$)", r"A_n = \frac{\Phi}{B}", f"A_n = \\frac{{{d.flujo:,.0f}}}{{{d.B_kgauss*1000:.0f}}}", f"A_n = {d.An:.2f}", "cm^2")
         add_step(doc, "Área Bruta ($A_b$)", r"A_b = \frac{A_n}{f_a}", f"A_b = \\frac{{{d.An:.2f}}}{{{d.fa:.3f}}}", f"A_b = {d.Ab:.2f}", "cm^2")
+        
+        # Mostrar Kr original y redondeado
+        kr_display = f"K_r = {getattr(d, 'Kr_original', d.Kr):.3f} \\rightarrow {d.Kr}"
+        with doc.create(Subsection(NoEscape(f"Coeficiente de Plenitud del Hierro ($K_r$)"), numbering=False)):
+            doc.append(Math(data=[NoEscape(kr_display)], escape=False))
+        doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
+        
+        # Agregar cálculo del diámetro circunscrito D
+        add_step(doc, "Diámetro Circunscrito ($D$)", r"D = 2 \sqrt{\frac{A_n}{\pi \cdot K_r}}", f"D = 2 \\sqrt{{\\frac{{{d.An:.2f}}}{{\\pi \\cdot {d.Kr}}}}}", f"D = {d.D:.2f}", "cm")
 
         with doc.create(Subsection(NoEscape(f"Cálculo de escalones con su valor a y e"), numbering=False)):
             if not getattr(d, 'anchos', None) or not getattr(d, 'espesores', None):
@@ -50,13 +65,17 @@ def run(doc, d, add_step):
                                 use_path = None
                         if use_path:
                             safe_core_path = use_path.replace('\\', '/')
-                            with doc.create(Figure(position='h!')) as fig:
-                                fig.add_image(safe_core_path, width=NoEscape(r'0.6\textwidth'))
+                            with doc.create(Figure(position='H')) as fig:
+                                fig.add_image(safe_core_path, width=NoEscape(r'0.5\textwidth'))
                                 fig.add_caption('Sección transversal del núcleo.')
                         else:
-                            doc.append(NoEscape(fr"\textit{{No se encontró la imagen absoluta de la sección transversal del núcleo: {core_full_path}}}"))
+                            # Escapar caracteres especiales de LaTeX en mensajes de error
+                            error_path = str(core_full_path).replace('_', r'\_').replace('%', r'\%').replace('&', r'\&').replace('#', r'\#').replace('{', r'\{').replace('}', r'\}')
+                            doc.append(NoEscape(fr"\textit{{No se encontró la imagen absoluta de la sección transversal del núcleo: {error_path}}}"))
                 except Exception as e:
-                    doc.append(NoEscape(fr"\textit{{Error al incluir gráficos: {e}}}"))
+                    # Escapar caracteres especiales de LaTeX en mensajes de error
+                    error_msg = str(e).replace('_', r'\_').replace('%', r'\%').replace('&', r'\&').replace('#', r'\#').replace('{', r'\{').replace('}', r'\}')
+                    doc.append(NoEscape(fr"\textit{{Error al incluir gráficos: {error_msg}}}"))
 
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
         

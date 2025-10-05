@@ -27,21 +27,29 @@ class Application:
         self.window = sg.Window('Calculadora de Diseño (v14.1 - Corrección Final)', self._crear_layout())
 
     def _crear_container_datos_principales(self):
-        tipos_de_acero = list(acero_electrico_db.keys())
-        conn_default = conexiones_normalizadas[0] if conexiones_normalizadas else ''
+        # Crear mapeo de designaciones antiguas a claves de base de datos
+        tipos_de_acero_display = []
+        self.acero_map = {}  # mapeo de display -> clave de DB
+        for clave, datos in acero_electrico_db.items():
+            designacion = datos['designacion_antigua']
+            tipos_de_acero_display.append(designacion)
+            self.acero_map[designacion] = clave
+        
+        conn_default = 'Dyn5'  # Cambiar conexión por defecto
         return sg.Frame('Datos Principales del Transformador', [
             [sg.Text('Tipo:', size=(18,1)),
              sg.DropDown(['trifasico', 'monofasico'], default_value='trifasico', key='-TIPO-', enable_events=True)],
             [sg.Text('Potencia Nominal (kVA):', size=(18,1)), sg.Input('25', key='-S_KVA-')],
-            [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10500', key='-E1-')],
+            [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10000', key='-E1-')],
             [sg.Text('Tensión Secundario (V):', size=(18,1)), sg.Input('400', key='-E2-')],
             [sg.Text('Frecuencia (Hz):', size=(18,1)), sg.Input('60', key='-FREQ-')],
             [sg.Text('Conexión:', size=(18,1), key='-LBL-CONN-'),
              sg.Combo(conexiones_normalizadas, default_value=conn_default, key='-CONN-', readonly=True, size=(22,1))],
             [sg.Text('TAPs (%):', size=(18,1), key='-LBL-TAPS-'),
-             sg.Input('2.5, 5.0', key='-TAPS-', tooltip='Separados por coma. Dejar vacío si no hay.')],
-            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero, default_value='30M5', key='-ACERO-')],
-            [sg.Text('Tipo de Corte:', size=(18,1)), sg.DropDown(['Recto', 'Diagonal'], default_value='Recto', key='-CUT_TYPE-')]
+             sg.Input('', key='-TAPS-', tooltip='Ejemplo: 2.5, 5.0, 7.5 (separados por coma). Dejar vacío si no hay TAPs.')],
+            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero_display, default_value='30M5', key='-ACERO-')],
+            [sg.Text('Tipo de Corte:', size=(18,1)), sg.DropDown(['Recto', 'Diagonal'], default_value='Recto', key='-CUT_TYPE-')],
+            [sg.Checkbox('Redondear a 2 decimales', default=True, key='-REDONDEAR-')]
         ])
 
     def _crear_container_parametros(self):
@@ -52,17 +60,37 @@ class Application:
             [sg.Input('1.25,2; 1,6; 0.5,8; 0.25,4; 0,4', key='-CICLO_CARGA-')]
         ])
         # --- FIN DE LA MODIFICACIÓN ---
-        params_avanzados = sg.Frame('Parámetros Avanzados (Opcional)', [
-            [sg.Text('Inducción B (kGauss):', size=(18,1)), sg.Input(key='-B_MANUAL-')],
-            [sg.Text('Constante C:', size=(18,1)), sg.Input(key='-C_MANUAL-')],
-            [sg.Text('Coeficiente Kc:', size=(18,1)), sg.Input(key='-KC_MANUAL-')]
+        
+        # Tab único de valores opcionales consolidado
+        params_opcionales = sg.Frame('Valores Opcionales', [
+            [sg.Checkbox('Usar valores opcionales', default=False, key='-USAR_OPCIONALES-', enable_events=True)],
+            [sg.HorizontalSeparator()],
+            [sg.Text('Parámetros de Diseño Opcionales:', font=('Helvetica', 10, 'bold'))],
+            [sg.Text('Inducción B (kGauss):', size=(20,1)), sg.Input(key='-B_OPCIONAL-', disabled=True)],
+            [sg.Text('Constante C:', size=(20,1)), sg.Input(key='-C_OPCIONAL-', disabled=True)],
+            [sg.Text('Coeficiente Kc:', size=(20,1)), sg.Input(key='-KC_OPCIONAL-', disabled=True)],
+            [sg.Text('Densidad J (A/mm²):', size=(20,1)), sg.Input(key='-J_OPCIONAL-', disabled=True)],
+            [sg.HorizontalSeparator()],
+            [sg.Text('Parámetros de Tabla Opcionales:', font=('Helvetica', 10, 'bold'))],
+            [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=True)],
+            [sg.Text('Coeficiente Kr:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=True)],
+            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=True)],
+            [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=True)],
+            [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=True)]
         ])
-        return params_diseno, params_avanzados
+        return params_diseno, params_opcionales
 
     def _crear_layout(self):
         main_container = self._crear_container_datos_principales()
-        design_container, advanced_container = self._crear_container_parametros()
-        columna_entradas = [[main_container], [design_container], [advanced_container], [sg.Button('Calcular Diseño', button_color=('white', 'green'), font=('Helvetica', 12)), sg.Button('Ver Archivo', key='-EXPORT-', disabled=True, font=('Helvetica', 12)), sg.Push(), sg.Button('Salir', font=('Helvetica', 12))]]
+        design_container, opcionales_container = self._crear_container_parametros()
+        
+        # Crear pestañas (solo Principal y Opcionales)
+        tab_group = sg.TabGroup([
+            [sg.Tab('Principal', [[main_container], [design_container]], key='-TAB_PRINCIPAL-')],
+            [sg.Tab('Opcionales', [[opcionales_container]], key='-TAB_OPCIONALES-')]
+        ])
+        
+        columna_entradas = [[tab_group], [sg.Button('Calcular Diseño', button_color=('white', 'green'), font=('Helvetica', 12)), sg.Button('Ver Archivo', key='-EXPORT-', disabled=True, font=('Helvetica', 12)), sg.Push(), sg.Button('Salir', font=('Helvetica', 12))]]
         
         image_element = [sg.Image(key='-IMAGE-')]
 
@@ -159,21 +187,36 @@ class Application:
                         # ignorar pares mal formateados
                         continue
 
+            # Convertir la designación mostrada a la clave de base de datos
+            acero_seleccionado = values['-ACERO-']
+            acero_clave = self.acero_map.get(acero_seleccionado, acero_seleccionado)
+            
             params = {
                 'tipo': values['-TIPO-'],
                 'S': float(values['-S_KVA-']),
                 'E1': float(values['-E1-']),
                 'E2': float(values['-E2-']),
                 'f': float(values['-FREQ-']),
-                'acero': values['-ACERO-'],
+                'acero': acero_clave,
                 'conn': values['-CONN-'],
                 'taps': [float(t.strip()) for t in values['-TAPS-'].split(',')] if values['-TAPS-'].strip() else [],
                 'rel_rw': float(values['-RW-']),
-                'b_man': float(values['-B_MANUAL-']) if values['-B_MANUAL-'] else None,
-                'c_man': float(values['-C_MANUAL-']) if values['-C_MANUAL-'] else None,
-                'kc_man': float(values['-KC_MANUAL-']) if values['-KC_MANUAL-'] else None,
+                'b_man': None,  # Campos manuales eliminados, ahora solo se usan opcionales
+                'c_man': None,
+                'kc_man': None,
                 'ciclo_carga': ciclo_carga,
-                'cut_type': values.get('-CUT_TYPE-', 'Recto')
+                'cut_type': values.get('-CUT_TYPE-', 'Recto'),
+                'redondear_2_decimales': values.get('-REDONDEAR-', False),
+                'usar_valores_opcionales': values.get('-USAR_OPCIONALES-', False),
+                'b_opcional': float(values['-B_OPCIONAL-']) if values['-B_OPCIONAL-'] else None,
+                'c_opcional': float(values['-C_OPCIONAL-']) if values['-C_OPCIONAL-'] else None,
+                'kc_opcional': float(values['-KC_OPCIONAL-']) if values['-KC_OPCIONAL-'] else None,
+                'j_opcional': float(values['-J_OPCIONAL-']) if values['-J_OPCIONAL-'] else None,
+                'fa_opcional': float(values['-FA_OPCIONAL-']) if values['-FA_OPCIONAL-'] else None,
+                'kr_opcional': float(values['-KR_OPCIONAL-']) if values['-KR_OPCIONAL-'] else None,
+                'pf_opcional': float(values['-PF_OPCIONAL-']) if values['-PF_OPCIONAL-'] else None,
+                'rho_acero_opcional': float(values['-RHO_ACERO_OPCIONAL-']) if values['-RHO_ACERO_OPCIONAL-'] else None,
+                'rho_cobre_opcional': float(values['-RHO_COBRE_OPCIONAL-']) if values['-RHO_COBRE_OPCIONAL-'] else None
             }
 
             diseno = DisenoTransformador(**params)
@@ -264,6 +307,25 @@ class Application:
                     self.window['-CONN-'].update(visible=es_trifasico)
                     self.window['-LBL-TAPS-'].update(visible=es_trifasico)
                     self.window['-TAPS-'].update(visible=es_trifasico)
+                except Exception:
+                    pass
+                continue
+                
+            elif event == '-USAR_OPCIONALES-':
+                # Habilitar/deshabilitar campos opcionales según el checkbox
+                usar_opcionales = values.get('-USAR_OPCIONALES-', False)
+                try:
+                    # Campos de parámetros de diseño
+                    self.window['-B_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-C_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-KC_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-J_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    # Campos de parámetros de tabla
+                    self.window['-FA_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-KR_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-PF_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-RHO_ACERO_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    self.window['-RHO_COBRE_OPCIONAL-'].update(disabled=not usar_opcionales)
                 except Exception:
                     pass
                 continue

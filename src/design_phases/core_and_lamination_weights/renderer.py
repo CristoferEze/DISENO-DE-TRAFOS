@@ -17,8 +17,22 @@ def run(doc, d, add_step):
             step_num = step_data['escalon']
             
             with doc.create(Subsection(f"Dimensionado y Peso del Escalón {step_num}", numbering=False)):
+                # Mostrar tipo de corte si está disponible
+                if step_data['detalles'] and step_data['detalles'][0].get('tipo_corte'):
+                    tipo_corte = step_data['detalles'][0]['tipo_corte']
+                    doc.append(NoEscape(f"\\textbf{{Tipo de corte:}} {tipo_corte}"))
+                    doc.append(Command('newline'))
+                    doc.append(Command('vspace', '0.3em'))
+                
                 if 'detalles' in step_data and step_data['detalles']:
                     for pieza_detalle in step_data['detalles']:
+                        
+                        # 0. Mostrar fórmula de largo específica si está disponible
+                        if pieza_detalle.get('formula_largo'):
+                            formula_largo = pieza_detalle['formula_largo']
+                            largo_cm = pieza_detalle.get('largo_cm', 0)
+                            doc.append(NoEscape(f"\\textbf{{Largo de {pieza_detalle.get('nombre', 'pieza')}:}} $L = {formula_largo} = {largo_cm:.2f}$ cm"))
+                            doc.append(Command('newline'))
                         
                         # 1. Renderizar el cálculo del NÚMERO DE PIEZAS
                         try:
@@ -60,14 +74,15 @@ def run(doc, d, add_step):
                         # 2. Asegurar que la ruta use slashes (/) para ser compatible con LaTeX.
                         safe_plot_path = relative_path.replace('\\', '/')
                         
-                        # 3. Usar el entorno Figure estándar, pero forzando la posición con 'h!'
-                        #    'h!' significa "colocar AQUÍ" y evita que la imagen flote.
-                        with doc.create(Figure(position='h!')) as fig:
-                            fig.add_image(safe_plot_path, width=NoEscape(r'0.7\textwidth'))
+                        # 3. Usar el entorno Figure con posición H para evitar saltos de página
+                        with doc.create(Figure(position='H')) as fig:
+                            fig.add_image(safe_plot_path, width=NoEscape(r'0.6\textwidth'))
                             fig.add_caption(f'Dimensionado de laminación para el escalón {step_num}.')
 
                     except Exception as e:
-                        doc.append(NoEscape(fr"\textit{{Error al incluir imagen del escalón {step_num}: {e}}}"))
+                        # Escapar caracteres especiales de LaTeX en mensajes de error
+                        error_msg = str(e).replace('_', r'\_').replace('%', r'\%').replace('&', r'\&').replace('#', r'\#').replace('{', r'\{').replace('}', r'\}')
+                        doc.append(NoEscape(fr"\textit{{Error al incluir imagen del escalón {step_num}: {error_msg}}}"))
                 else:
                     doc.append(NoEscape(fr"\textit{{No se encontró la imagen para el escalón {step_num}.}}"))
                 # --- FIN DE LA SIMPLIFICACIÓN Y CORRECCIÓN ---

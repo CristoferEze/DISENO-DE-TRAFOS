@@ -6,9 +6,11 @@ from pylatex.utils import NoEscape, bold
 
 def run(doc, d):
     """Añade el encabezado y la sección de datos de entrada al documento."""
+    doc.append(NoEscape(r"\begin{center}"))
     doc.append(NoEscape(r"{\Large \bfseries Reporte de Diseño de Transformador}"))
     doc.append(Command('newline'))
     doc.append(NoEscape(r"{\large Calculadora Automática}"))
+    doc.append(NoEscape(r"\end{center}"))
     doc.append(Command('vspace', '1em'))
     doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.8pt']))
 
