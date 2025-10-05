@@ -18,7 +18,7 @@ from ui.report_builder import generate_full_report_document
 
 # Plotters del módulo nucleus_and_window (se co-localizaron ahí)
 from design_phases.nucleus_and_window import core_plotter
-from design_phases.core_and_lamination_weights.lamination_plotters import generate_plot as lamination_plotters_generate
+from design_phases.core_and_lamination_weights.lamination_plotters import generate_plot 
 
 class Application:
     def __init__(self):
