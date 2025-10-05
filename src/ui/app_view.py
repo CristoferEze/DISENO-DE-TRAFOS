@@ -90,7 +90,12 @@ class Application:
             [sg.Tab('Opcionales', [[opcionales_container]], key='-TAB_OPCIONALES-')]
         ])
         
-        columna_entradas = [[tab_group], [sg.Button('Calcular Diseño', button_color=('white', 'green'), font=('Helvetica', 12)), sg.Button('Ver Archivo', key='-EXPORT-', disabled=True, font=('Helvetica', 12)), sg.Push(), sg.Button('Salir', font=('Helvetica', 12))]]
+        columna_entradas = [
+            [sg.Text('Universidad nacional del centro del Perú', font=('Helvetica', 14, 'bold'))],
+            [sg.Text('"Facultad de ingenieria electrica y electronica"', font=('Helvetica', 12))],
+            [tab_group],
+            [sg.Button('Calcular Diseño', button_color=('white', 'green'), font=('Helvetica', 12)), sg.Button('Ver Archivo', key='-EXPORT-', disabled=True, font=('Helvetica', 12)), sg.Push(), sg.Button('Salir', font=('Helvetica', 12))]
+        ]
         
         image_element = [sg.Image(key='-IMAGE-')]
 

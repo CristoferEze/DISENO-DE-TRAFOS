@@ -21,7 +21,7 @@ def generate_connection_diagram(d, output_dir='temp'):
 
     conn_str = getattr(d, 'conn', 'Dyn5').upper()
     title = f'Diagrama de Conexionado - {conn_str}' if getattr(d, 'fases', 3) == 3 else 'Diagrama de Conexionado - Monofásico'
-    ax.set_title(title, fontsize=16, fontweight='bold')
+    ax.set_title(title, fontsize=16, fontweight='bold', y=1.02)
     
     if getattr(d, 'fases', 3) == 3:
         three_phase_drawer.draw(ax, d)

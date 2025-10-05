@@ -76,19 +76,36 @@ def run(d):
                 resto = conn_str[1:]
                 if resto.startswith('yn') or resto.startswith('YN'):
                     d.conn2 = 'YN'
+                    # Extraer índice horario después de 'yn'
+                    indice_str = resto[2:] if len(resto) > 2 else '0'
                 elif resto.startswith('y') or resto.startswith('Y'):
                     d.conn2 = 'Y'
+                    # Extraer índice horario después de 'y'
+                    indice_str = resto[1:] if len(resto) > 1 else '0'
                 elif resto.startswith('d') or resto.startswith('D'):
                     d.conn2 = 'D'
+                    # Extraer índice horario después de 'd'
+                    indice_str = resto[1:] if len(resto) > 1 else '0'
                 else:
                     d.conn2 = 'YN'  # Default
+                    indice_str = '0'
+                
+                # Convertir índice horario a entero
+                try:
+                    d.clock_index = int(indice_str)
+                except ValueError:
+                    d.clock_index = 0
+                    
             elif '-' in conn_str:
                 parts = conn_str.split('-', 1)
                 d.conn1, d.conn2 = parts[0], parts[1]
+                d.clock_index = 0  # Default para formato con guión
             else:
                 d.conn1 = d.conn2 = conn_str
+                d.clock_index = 0
         else:
             d.conn1, d.conn2 = 'D', 'YN'
+            d.clock_index = 0
             
         # Calcular tensiones de fase correctamente
         d.E1_fase = d.E1_linea if 'D' in d.conn1 else d.E1_linea / math.sqrt(3)
