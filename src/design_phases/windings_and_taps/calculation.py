@@ -124,19 +124,31 @@ def run(d):
         d.metodo_peso_secundario = "Cálculo teórico"
         print(f"Usando cálculo teórico para conductor secundario. Sección: {getattr(d, 's2', 0.0):.2f} mm²")
 
-    # 3. Bobinado primario (usamos el número máximo de espiras de TAPs)
+    # 3. Bobinado primario: determinar número de espiras usando TAPs o relación de transformación
     if d.tap_data:
         try:
             N1_max = d.tap_data[max(d.tap_data.keys())]['N_espiras']
         except Exception:
             N1_max = 0
     else:
-        N1_max = 0
-
+        # Si no hay TAPs, calcular N1 a partir de la relación de transformación:
+        # N1 = N2 * (E1_fase / E2_fase)
+        try:
+            # Usar valores numéricos sin aplicar redondeos excesivos para la relación;
+            # el número de espiras debe ser entero.
+            N1_calc = d.N2_fase * (d.E1_fase / d.E2_fase) if getattr(d, 'E2_fase', 0) else 0
+            N1_max = int(round(N1_calc))
+        except Exception:
+            N1_max = 0
+    
+    # Guardar el número de espiras primarias calculado para trazabilidad
+    d.N1_fase = N1_max
+    
+    # Longitud y peso del bobinado primario
     d.Lb1 = aplicar_redondeo(d.lm * N1_max)
     d.Qb1 = aplicar_redondeo(d.Lb1 * d.peso_conductor_primario_kg_m)
     
-    # 4. Bobinado secundario
+    # 4. Bobinado secundario (ya calculado previamente: uso de N2_fase)
     d.Lb2 = aplicar_redondeo(d.lm * d.N2_fase)
     d.Qb2 = aplicar_redondeo(d.Lb2 * d.peso_conductor_secundario_kg_m)
     

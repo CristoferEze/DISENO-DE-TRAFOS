@@ -105,8 +105,20 @@ def run(doc, d, add_step):
                             f"{formatear_numero(getattr(d, 'Qb2', 0.0))}", "kg")
             doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
 
-        # Mostrar peso total del cobre calculado por bobinado
-        doc.append(NoEscape(fr"\textbf{{Peso Total del Cobre}}: $Q_c = Q_{{b1}} + Q_{{b2}} = {formatear_numero(getattr(d, 'Qb1', 0.0))} + {formatear_numero(getattr(d, 'Qb2', 0.0))} = \mathbf{{{formatear_numero(getattr(d, 'Qc_por_bobinado', 0.0))}}}$ kg"))
+        # CORREGIDO: Mostrar peso total del cobre calculado considerando el número de fases
+        factor_fases = 3 if getattr(d, 'fases', 1) == 3 else 1
+        Qc_por_bobinado = getattr(d, 'Qc_por_bobinado', 0.0)
+        Qc_total = getattr(d, 'Qc_total', 0.0)
+        
+        if factor_fases == 3:
+            # Para trifásico: mostrar cálculo por fase y luego el total
+            doc.append(NoEscape(fr"\textbf{{Peso del Cobre (por fase)}}: $Q_{{c,fase}} = Q_{{b1}} + Q_{{b2}} = {formatear_numero(getattr(d, 'Qb1', 0.0))} + {formatear_numero(getattr(d, 'Qb2', 0.0))} = {formatear_numero(Qc_por_bobinado)}$ kg"))
+            doc.append(Command('newline'))
+            doc.append(NoEscape(fr"\textbf{{Peso Total del Cobre (3 fases)}}: $Q_c = Q_{{c,fase}} \times 3 = {formatear_numero(Qc_por_bobinado)} \times 3 = \mathbf{{{formatear_numero(Qc_total)}}}$ kg"))
+        else:
+            # Para monofásico: mostrar directamente el total
+            doc.append(NoEscape(fr"\textbf{{Peso Total del Cobre}}: $Q_c = Q_{{b1}} + Q_{{b2}} = {formatear_numero(getattr(d, 'Qb1', 0.0))} + {formatear_numero(getattr(d, 'Qb2', 0.0))} = \mathbf{{{formatear_numero(Qc_total)}}}$ kg"))
+        
         doc.append(Command('vspace', '0.3em'))
 
         # Comparación con la fórmula propuesta: Q_c = 0.021 * Kc * b * c * (2*D + c)
@@ -115,13 +127,29 @@ def run(doc, d, add_step):
             b_val = getattr(d, 'b', 0.0)
             c_val = getattr(d, 'c', 0.0)
             D_val = getattr(d, 'D', 0.0)
+
+            # CORREGIDO: La fórmula empírica ya está definida para transformador trifásico
+            factor_fases = 3 if getattr(d, 'fases', 1) == 3 else 1
+
             Qc_formula = 0.021 * Kc_val * b_val * c_val * (2 * D_val + c_val)
-            Qc_formula_str = formatear_numero(Qc_formula)
-            Qc_calc = float(getattr(d, 'Qc_por_bobinado', 0.0))
-            diff_abs = Qc_calc - Qc_formula
-            diff_pct = (diff_abs / Qc_formula * 100.0) if Qc_formula != 0 else 0.0
+            # Para monofásico, dividir la fórmula entre 3 para comparar apropiadamente
+            if factor_fases == 1:
+                Qc_formula_comparacion = Qc_formula / 3
+                formula_text = "0.021 \\cdot K_c \\cdot b \\cdot c \\cdot (2D + c) / 3"
+            else:
+                Qc_formula_comparacion = Qc_formula
+                formula_text = "0.021 \\cdot K_c \\cdot b \\cdot c \\cdot (2D + c)"
+            
+            Qc_formula_str = formatear_numero(Qc_formula_comparacion)
+
+            # CORREGIDO: Usar Qc_total que ya tiene el factor de fases aplicado correctamente
+            Qc_calc_total = getattr(d, 'Qc_total', 0.0)
+
+            diff_abs = Qc_calc_total - Qc_formula_comparacion
+            diff_pct = (diff_abs / Qc_formula_comparacion * 100.0) if Qc_formula_comparacion != 0 else 0.0
             diff_pct_str = formatear_numero(diff_pct)
-            doc.append(NoEscape(fr"\textbf{{Comparación con fórmula estimada}}: $Q_c^{{fórmula}} = 0.021 \cdot K_c \cdot b \cdot c \cdot (2D + c) = \mathbf{{{Qc_formula_str}}}$ kg; Diferencia = {diff_pct_str}\%"))
+
+            doc.append(NoEscape(fr"\textbf{{Comparación con fórmula estimada}}: $Q_c^{{fórmula}} = {formula_text} = \mathbf{{{Qc_formula_str}}}$ kg; Diferencia = {diff_pct_str}\%"))
         except Exception:
             doc.append(NoEscape(r"\textbf{Comparación con fórmula estimada}: No disponible (datos incompletos)"))
 

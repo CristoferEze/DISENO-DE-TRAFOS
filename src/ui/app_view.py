@@ -47,7 +47,7 @@ class Application:
              sg.Combo(conexiones_normalizadas, default_value=conn_default, key='-CONN-', readonly=True, size=(22,1))],
             [sg.Text('TAPs (%):', size=(18,1), key='-LBL-TAPS-'),
              sg.Input('', key='-TAPS-', tooltip='Ejemplo: 2.5, 5.0, 7.5 (separados por coma). Dejar vacío si no hay TAPs.')],
-            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero_display, default_value='30M5', key='-ACERO-')],
+            [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero_display, default_value='35M6', key='-ACERO-')],
             [sg.Text('Tipo de Corte:', size=(18,1)), sg.DropDown(['Recto', 'Diagonal'], default_value='Recto', key='-CUT_TYPE-')],
             [sg.Checkbox('Redondear a 2 decimales', default=True, key='-REDONDEAR-')]
         ])

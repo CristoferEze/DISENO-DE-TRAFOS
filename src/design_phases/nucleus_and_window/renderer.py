@@ -26,7 +26,9 @@ def run(doc, d, add_step):
         add_step(doc, r"Flujo Magnético ($\Phi$)", r"\Phi = C \cdot \sqrt{\frac{S}{f}} \cdot 10^3", f"\\Phi = {d.C:.2f} \\cdot \\sqrt{{\\frac{{{d.S}}}{{{d.f}}}}} \\cdot 10^3", flujo_display, "kilolineas")
         
         add_step(doc, "Área Neta ($A_n$)", r"A_n = \frac{\Phi}{B}", f"A_n = \\frac{{{d.flujo:,.0f}}}{{{d.B_kgauss*1000:.0f}}}", f"A_n = {d.An:.2f}", "cm^2")
-        add_step(doc, "Área Bruta ($A_b$)", r"A_b = \frac{A_n}{f_a}", f"A_b = \\frac{{{d.An:.2f}}}{{{d.fa:.3f}}}", f"A_b = {d.Ab:.2f}", "cm^2")
+        # CORREGIDO: Usar fa_original para mostrar el valor sin redondear en fórmulas
+        fa_display = getattr(d, 'fa_original', getattr(d, 'fa', 0.975))
+        add_step(doc, "Área Bruta ($A_b$)", r"A_b = \frac{A_n}{f_a}", f"A_b = \\frac{{{d.An:.2f}}}{{{fa_display:.3f}}}", f"A_b = {d.Ab:.2f}", "cm^2")
         
         # Mostrar Kr original y redondeado
         kr_display = f"K_r = {getattr(d, 'Kr_original', d.Kr):.3f} \\rightarrow {d.Kr}"

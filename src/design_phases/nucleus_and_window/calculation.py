@@ -3,6 +3,7 @@
 
 import math
 from core import database as db, utils
+from decimal import Decimal, ROUND_HALF_UP
 
 def _find_steel_data(steel_key):
     """
@@ -42,10 +43,14 @@ def run(d):
     try:
         steel_data = _find_steel_data(d.acero)
         # Usar valor opcional de fa si está disponible
-        if d.usar_valores_opcionales and d.fa_opcional:
-            d.fa = d.fa_opcional
+        # Usar valor opcional de fa si está disponible.
+        # Guardar siempre el valor original sin redondear en d.fa_original y usar d.fa = float(d.fa_original)
+        if d.usar_valores_opcionales and d.fa_opcional is not None:
+            d.fa_original = d.fa_opcional
         else:
-            d.fa = steel_data['fa']
+            d.fa_original = steel_data.get('fa', 0.975)
+        # CORREGIDO: No redondear NUNCA el factor de apilamiento, independientemente del modo de redondeo
+        d.fa = float(d.fa_original)
         d.merma_id = steel_data['merma']
     except KeyError as e:
         # Propagamos el error con un mensaje más descriptivo si la función falla.
@@ -103,11 +108,11 @@ def run(d):
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
         d.Kc_original = (kc_n / (30 + E1_kv)) * 1.15
     
-    # Redondear Kc según configuración
+    # Redondear Kc según configuración (usar ROUND_HALF_UP para evitar 'bankers rounding')
     if getattr(d, 'redondear_2_decimales', False):
-        d.Kc = round(d.Kc_original, 2)
+        d.Kc = float(Decimal(str(d.Kc_original)).quantize(Decimal('1e-2'), rounding=ROUND_HALF_UP))
     else:
-        d.Kc = round(d.Kc_original, 4)
+        d.Kc = float(Decimal(str(d.Kc_original)).quantize(Decimal('1e-4'), rounding=ROUND_HALF_UP))
 
     # Lógica de _calcular_nucleo
     d.flujo_original = d.C * math.sqrt(d.S / d.f) * 1e6
@@ -121,7 +126,8 @@ def run(d):
         d.flujo = d.flujo_original  # Usar valor original para más precisión
     
     d.An = d.flujo / (d.B_kgauss * 1000)
-    d.Ab = d.An / d.fa
+    # CORREGIDO: Usar fa_original para cálculos, no el valor redondeado
+    d.Ab = d.An / d.fa_original
     d.num_escalones = d._num_esc(d.Ab)
     
     # Usar valor opcional de Kr si está disponible
@@ -132,11 +138,11 @@ def run(d):
         db_kr_esc = db_kr_acero.get(d.num_escalones, {})
         d.Kr_original = db_kr_esc[utils.sel_clave(db_kr_esc, d.S)]
     
-    # Redondear Kr según configuración
+    # Redondear Kr según configuración (usar ROUND_HALF_UP para evitar 'bankers rounding')
     if getattr(d, 'redondear_2_decimales', False):
-        d.Kr = round(d.Kr_original, 2)
+        d.Kr = float(Decimal(str(d.Kr_original)).quantize(Decimal('1e-2'), rounding=ROUND_HALF_UP))
     else:
-        d.Kr = round(d.Kr_original, 3)
+        d.Kr = float(Decimal(str(d.Kr_original)).quantize(Decimal('1e-3'), rounding=ROUND_HALF_UP))
     
     # Calcular diámetro circunscrito D usando valores redondeados
     d.D = 2 * math.sqrt(d.An / (math.pi * d.Kr))
@@ -147,7 +153,8 @@ def run(d):
         e_i = (math.sqrt(d.D**2 - a_i**2) - suma_e_previos) / 2.0
         d.espesores.append(e_i)
         suma_e_previos += 2 * e_i
-    d.An_verificacion = 2 * d.fa * sum([d.anchos[i] * d.espesores[i] for i in range(len(d.anchos))])
+    # CORREGIDO: Usar fa_original para cálculos, no el valor redondeado
+    d.An_verificacion = 2 * d.fa_original * sum([d.anchos[i] * d.espesores[i] for i in range(len(d.anchos))])
 
     # Lógica de _calcular_ventana
     S_VA = d.S * 1000; J_A_m2 = d.J * 1e6; An_m2 = d.An * 1e-4

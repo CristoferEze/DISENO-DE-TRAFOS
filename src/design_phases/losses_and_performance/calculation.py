@@ -35,13 +35,15 @@ def run(d):
     # No multiplicar por 3: la fórmula se aplica directamente para el transformador (trifásico)
     d.Qc_empirical_total = Qc_emp
     
-    # Selección de la masa de cobre que se usará para calcular pérdidas:
-    # - Si es monofásico, usar el cálculo físico (d.Qc_total o d.Qc_por_bobinado)
-    # - Si es trifásico, usar la fórmula empírica (Qc_emp)
+    # CORREGIDO: Selección de la masa de cobre que se usará para calcular pérdidas:
+    # - Si es monofásico, usar SIEMPRE el cálculo físico (d.Qc_total)
+    # - Si es trifásico, usar SIEMPRE la fórmula empírica (Qc_emp)
     if getattr(d, 'fases', 3) == 1:
         mass_copper_for_losses = getattr(d, 'Qc_total', getattr(d, 'Qc_por_bobinado', 0.0))
+        d.copper_calculation_method = "Cálculo manual (monofásico)"
     else:
         mass_copper_for_losses = d.Qc_empirical_por_formula
+        d.copper_calculation_method = "Fórmula empírica (trifásico)"
     
     d.Qc_used_for_losses = mass_copper_for_losses
     
@@ -55,13 +57,29 @@ def run(d):
     else:
         d.Pf = utils.get_specific_iron_loss(getattr(d, 'acero', None), getattr(d, 'B_kgauss', 0.0))
 
-    # Qf empírico (masa de hierro aplicable a pérdidas)
-    Kf_val = getattr(d, 'Kf', 1.0)
-    try:
-        Qf_emp = 0.006 * float(Kf_val) * (float(D_val) ** 2) * (3.0 * float(b_val) + 4.0 * float(c_val) + 5.87 * float(D_val))
-    except Exception:
-        Qf_emp = 0.0
-    d.Qf_empirical = Qf_emp
+    # CORREGIDO: Qf (masa de hierro aplicable a pérdidas)
+    # - Si es monofásico, usar SIEMPRE el cálculo físico del peso del hierro
+    # - Si es trifásico, usar SIEMPRE la fórmula empírica
+    if getattr(d, 'fases', 3) == 1:
+        # Para monofásico: usar el peso del hierro calculado físicamente
+        d.Qf_empirical = getattr(d, 'Qr', 0.0)  # Peso del hierro calculado
+        d.Kr_used_for_Qf = "N/A (cálculo manual)"
+        d.iron_calculation_method = "Cálculo manual (monofásico)"
+    else:
+        # Para trifásico: usar fórmula empírica
+        kr_for_Qf = getattr(d, 'Kr_original', None)
+        if kr_for_Qf is None:
+            kr_for_Qf = getattr(d, 'Kr', 1.0)
+        
+        try:
+            # No redondear kr_for_Qf ni otros intermedios al calcular Qf_emp
+            Qf_emp = 0.006 * float(kr_for_Qf) * (float(D_val) ** 2) * (3.0 * float(b_val) + 4.0 * float(c_val) + 5.87 * float(D_val))
+        except Exception:
+            Qf_emp = 0.0
+        
+        d.Qf_empirical = Qf_emp
+        d.Kr_used_for_Qf = kr_for_Qf
+        d.iron_calculation_method = "Fórmula empírica (trifásico)"
 
     # Pérdidas en W debidas al hierro
     d.Wf = d.Qf_empirical * d.Pf

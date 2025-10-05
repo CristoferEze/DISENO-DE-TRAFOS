@@ -23,9 +23,13 @@ def run(d, work_dir=None):
     espesor_lamina_mm = steel_data.get('espesor_mm', 0.35)
     espesor_lamina_cm = espesor_lamina_mm / 10.0
     
-    # Usar factor de apilamiento opcional si está disponible
-    if d.usar_valores_opcionales and d.fa_opcional:
-        factor_apilamiento = d.fa_opcional
+    # Usar factor de apilamiento sin redondear:
+    # Priorizar valor opcional si se proporcionó, luego usar d.fa_original si existe (no redondeado),
+    # y finalmente el valor de la base de datos. Convertir a float para asegurar tipo numérico.
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'fa_opcional', None) is not None:
+        factor_apilamiento = float(d.fa_opcional)
+    elif hasattr(d, 'fa_original'):
+        factor_apilamiento = float(d.fa_original)
     else:
         factor_apilamiento = steel_data.get('fa', 0.975)
 
