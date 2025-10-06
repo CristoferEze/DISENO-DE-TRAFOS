@@ -71,10 +71,14 @@ class Application:
             [sg.Text('Coeficiente Kc:', size=(20,1)), sg.Input(key='-KC_OPCIONAL-', disabled=True)],
             [sg.Text('Densidad J (A/mm²):', size=(20,1)), sg.Input(key='-J_OPCIONAL-', disabled=True)],
             [sg.HorizontalSeparator()],
+            [sg.Text('Parámetros de Pérdidas Manuales:', font=('Helvetica', 10, 'bold'))],
+            [sg.Text('Pérdidas Cobre Pc (W/kg):', size=(20,1)), sg.Input(key='-PC_MANUAL-', disabled=True, tooltip='Valor manual para pérdidas específicas en el cobre')],
+            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_MANUAL-', disabled=True, tooltip='Valor manual para pérdidas específicas en el hierro')],
+            [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Tabla Opcionales:', font=('Helvetica', 10, 'bold'))],
             [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=True)],
             [sg.Text('Coeficiente Kr:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=True)],
-            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=True)],
+            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=True, tooltip='Valor de tabla para pérdidas específicas en el hierro')],
             [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=True)],
             [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=True)]
         ])
@@ -221,7 +225,9 @@ class Application:
                 'kr_opcional': float(values['-KR_OPCIONAL-']) if values['-KR_OPCIONAL-'] else None,
                 'pf_opcional': float(values['-PF_OPCIONAL-']) if values['-PF_OPCIONAL-'] else None,
                 'rho_acero_opcional': float(values['-RHO_ACERO_OPCIONAL-']) if values['-RHO_ACERO_OPCIONAL-'] else None,
-                'rho_cobre_opcional': float(values['-RHO_COBRE_OPCIONAL-']) if values['-RHO_COBRE_OPCIONAL-'] else None
+                'rho_cobre_opcional': float(values['-RHO_COBRE_OPCIONAL-']) if values['-RHO_COBRE_OPCIONAL-'] else None,
+                'pc_manual': float(values['-PC_MANUAL-']) if values['-PC_MANUAL-'] else None,
+                'pf_manual': float(values['-PF_MANUAL-']) if values['-PF_MANUAL-'] else None
             }
 
             diseno = DisenoTransformador(**params)
@@ -325,6 +331,9 @@ class Application:
                     self.window['-C_OPCIONAL-'].update(disabled=not usar_opcionales)
                     self.window['-KC_OPCIONAL-'].update(disabled=not usar_opcionales)
                     self.window['-J_OPCIONAL-'].update(disabled=not usar_opcionales)
+                    # Campos de pérdidas manuales
+                    self.window['-PC_MANUAL-'].update(disabled=not usar_opcionales)
+                    self.window['-PF_MANUAL-'].update(disabled=not usar_opcionales)
                     # Campos de parámetros de tabla
                     self.window['-FA_OPCIONAL-'].update(disabled=not usar_opcionales)
                     self.window['-KR_OPCIONAL-'].update(disabled=not usar_opcionales)

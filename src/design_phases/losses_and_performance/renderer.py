@@ -17,9 +17,16 @@ def run(doc, d, add_step):
     with doc.create(Section('Pérdidas y Rendimiento a Plena Carga', numbering=False)):
 
         with doc.create(Subsection(NoEscape(r'Pérdidas en el Cobre ($W_c$)'), numbering=False)):
-            add_step(doc, r"Pérdidas Específicas ($P_c$)", r"P_c = 2.44 \cdot J^2",
-                     fr"P_c = 2.44 \cdot ({formatear_numero(d.J)})^2",
-                     fr"P_c = {formatear_numero(getattr(d, 'Pc', 0.0))}", r"W/kg")
+            # Mostrar cómo se obtuvo Pc
+            pc_method = getattr(d, 'Pc_calculation_method', 'Fórmula empírica (2.44 × J²)')
+            doc.append(NoEscape(fr"\textbf{{Pérdidas Específicas ($P_c$) - {pc_method}}}"))
+            
+            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_manual', None) is not None:
+                doc.append(NoEscape(fr"Valor manual ingresado: $P_c = {formatear_numero(getattr(d, 'Pc', 0.0))}$ W/kg"))
+            else:
+                add_step(doc, r"Pérdidas Específicas ($P_c$)", r"P_c = 2.44 \cdot J^2",
+                         fr"P_c = 2.44 \cdot ({formatear_numero(getattr(d, 'J', 0.0))})^2",
+                         fr"P_c = {formatear_numero(getattr(d, 'Pc', 0.0))}", r"W/kg")
 
             # Mostrar peso de cobre usado en pérdidas: fórmula empírica y total (considerando fases)
             add_step(doc, r"Peso de Cobre para pérdidas (empírico)",
@@ -37,9 +44,17 @@ def run(doc, d, add_step):
             doc.append(NoEscape(fr"\textbf{{Peso físico total (considerando fases):}} {formatear_numero(getattr(d, 'Qc_total', getattr(d, 'Qc_por_bobinado', 0.0)))} kg"))
 
         with doc.create(Subsection(NoEscape(r'Pérdidas en el Hierro ($W_f$)'), numbering=False)):
-            doc.append(NoEscape(r"\textbf{Pérdidas Específicas ($P_f$)}"))
-            doc.append(NoEscape(fr"Para acero \textbf{{{getattr(d, 'acero', '?')}}} a ${formatear_numero(getattr(d, 'B_kgauss', 0.0))}$ kGauss, el valor de tabla es:"))
-            doc.append(NoEscape(fr"$$ P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)} \; \mathrm{{W/kg}} $$"))
+            # Mostrar cómo se obtuvo Pf
+            pf_method = getattr(d, 'Pf_calculation_method', f'Valor de tabla para acero {getattr(d, "acero", "?")}')
+            doc.append(NoEscape(fr"\textbf{{Pérdidas Específicas ($P_f$) - {pf_method}}}"))
+            
+            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_manual', None) is not None:
+                doc.append(NoEscape(fr"Valor manual ingresado: $P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)}$ W/kg"))
+            elif getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', 0):
+                doc.append(NoEscape(fr"Valor opcional de tabla: $P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)}$ W/kg"))
+            else:
+                doc.append(NoEscape(fr"Para acero \textbf{{{getattr(d, 'acero', '?')}}} a ${formatear_numero(getattr(d, 'B_kgauss', 0.0))}$ kGauss, el valor de tabla es:"))
+                doc.append(NoEscape(fr"$$ P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)} \; \mathrm{{W/kg}} $$"))
             doc.append(Command('vspace', '0.5em'))
  
             # Masa de hierro usada para pérdidas (fórmula empírica)
