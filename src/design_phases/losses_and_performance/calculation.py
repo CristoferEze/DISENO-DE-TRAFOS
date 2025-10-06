@@ -28,7 +28,9 @@ def run(d):
 
     # Qc empírico (kg) — la fórmula ya corresponde a transformador trifásico (no multiplicar por 3)
     try:
-        Qc_emp = 0.021 * float(Kc_val) * float(b_val) * float(c_val) * (2.0 * float(D_val) + float(c_val))
+        # Constante según tipo: Monofásico: 0.014, Trifásico: 0.021
+        constante_Qc = 0.014 if getattr(d, 'fases', 3) == 1 else 0.021
+        Qc_emp = constante_Qc * float(Kc_val) * float(b_val) * float(c_val) * (2.0 * float(D_val) + float(c_val))
     except Exception:
         Qc_emp = 0.0
     d.Qc_empirical_por_formula = Qc_emp
@@ -63,22 +65,24 @@ def run(d):
     if getattr(d, 'fases', 3) == 1:
         # Para monofásico: usar el peso del hierro calculado físicamente
         d.Qf_empirical = getattr(d, 'Qr', 0.0)  # Peso del hierro calculado
-        d.Kr_used_for_Qf = "N/A (cálculo manual)"
+        d.Kf_used_for_Qf = "N/A (cálculo manual)"
         d.iron_calculation_method = "Cálculo manual (monofásico)"
     else:
         # Para trifásico: usar fórmula empírica
-        kr_for_Qf = getattr(d, 'Kr_original', None)
-        if kr_for_Qf is None:
-            kr_for_Qf = getattr(d, 'Kr', 1.0)
+        kf_for_Qf = getattr(d, 'Kr_original', None)
+        if kf_for_Qf is None:
+            kf_for_Qf = getattr(d, 'Kr', 1.0)
         
         try:
-            # No redondear kr_for_Qf ni otros intermedios al calcular Qf_emp
-            Qf_emp = 0.006 * float(kr_for_Qf) * (float(D_val) ** 2) * (3.0 * float(b_val) + 4.0 * float(c_val) + 5.87 * float(D_val))
+            # No redondear kf_for_Qf ni otros intermedios al calcular Qf_emp
+            # Constante según tipo: Monofásico: 0.012, Trifásico: 0.006
+            constante_Qf = 0.012 if getattr(d, 'fases', 3) == 1 else 0.006
+            Qf_emp = constante_Qf * float(kf_for_Qf) * (float(D_val) ** 2) * (3.0 * float(b_val) + 4.0 * float(c_val) + 5.87 * float(D_val))
         except Exception:
             Qf_emp = 0.0
         
         d.Qf_empirical = Qf_emp
-        d.Kr_used_for_Qf = kr_for_Qf
+        d.Kf_used_for_Qf = kf_for_Qf
         d.iron_calculation_method = "Fórmula empírica (trifásico)"
 
     # Pérdidas en W debidas al hierro

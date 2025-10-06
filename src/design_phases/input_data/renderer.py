@@ -34,7 +34,7 @@ def run(doc, d):
         parametros_base = (
             f"B = {d.B_kgauss*1000:.0f} \\, \\mathrm{{gauss}}, "
             f"J = {d.J:.2f} \\, \\mathrm{{A/mm^2}}, "
-            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_r = {d.Kr:.3f}"
+            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_f = {d.Kr:.3f}"
         )
         doc.append(Math(data=[NoEscape(parametros_base)], escape=False))
 

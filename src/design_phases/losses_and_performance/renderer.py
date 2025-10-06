@@ -23,8 +23,8 @@ def run(doc, d, add_step):
 
             # Mostrar peso de cobre usado en pérdidas: fórmula empírica y total (considerando fases)
             add_step(doc, r"Peso de Cobre para pérdidas (empírico)",
-                     r"Q_c = 0.021 \cdot K_c \cdot b \cdot c \cdot (2D + c)",
-                     fr"Q_c = 0.021 \cdot {formatear_numero(getattr(d, 'Kc', 1.0))} \cdot {formatear_numero(getattr(d, 'b', 0.0))} \cdot {formatear_numero(getattr(d, 'c', 0.0))} \cdot (2 \cdot {formatear_numero(getattr(d, 'D', 0.0))} + {formatear_numero(getattr(d, 'c', 0.0))})",
+                     r"Q_c = " + ("0.014" if getattr(d, 'fases', 3) == 1 else "0.021") + r" \cdot K_c \cdot b \cdot c \cdot (2D + c)",
+                     fr"Q_c = {('0.014' if getattr(d, 'fases', 3) == 1 else '0.021')} \cdot {formatear_numero(getattr(d, 'Kc', 1.0))} \cdot {formatear_numero(getattr(d, 'b', 0.0))} \cdot {formatear_numero(getattr(d, 'c', 0.0))} \cdot (2 \cdot {formatear_numero(getattr(d, 'D', 0.0))} + {formatear_numero(getattr(d, 'c', 0.0))})",
                      fr"Q_c = {formatear_numero(getattr(d, 'Qc_empirical_por_formula', 0.0))}", "kg")
 
             # Pérdidas en W usando la masa empírica del cobre
@@ -44,8 +44,8 @@ def run(doc, d, add_step):
  
             # Masa de hierro usada para pérdidas (fórmula empírica)
             add_step(doc, r"Masa de hierro (empírica) $Q_f$",
-                     r"Q_f = 0.006 \cdot K_f \cdot D^2 \cdot (3b + 4c + 5.87D)",
-                     fr"Q_f = 0.006 \cdot {formatear_numero(getattr(d, 'Kf', 1.0))} \cdot {formatear_numero(getattr(d, 'D', 0.0))}^2 \cdot (3 \cdot {formatear_numero(getattr(d, 'b', 0.0))} + 4 \cdot {formatear_numero(getattr(d, 'c', 0.0))} + 5.87 \cdot {formatear_numero(getattr(d, 'D', 0.0))})",
+                     r"Q_f = " + ("0.012" if getattr(d, 'fases', 3) == 1 else "0.006") + r" \cdot K_f \cdot D^2 \cdot (3b + 4c + 5.87D)",
+                     fr"Q_f = {('0.012' if getattr(d, 'fases', 3) == 1 else '0.006')} \cdot {formatear_numero(getattr(d, 'Kr', 1.0))} \cdot {formatear_numero(getattr(d, 'D', 0.0))}^2 \cdot (3 \cdot {formatear_numero(getattr(d, 'b', 0.0))} + 4 \cdot {formatear_numero(getattr(d, 'c', 0.0))} + 5.87 \cdot {formatear_numero(getattr(d, 'D', 0.0))})",
                      fr"Q_f = {formatear_numero(getattr(d, 'Qf_empirical', 0.0))}", "kg")
 
             # Mostrar detalle físico de Qr (opcional) y luego usar Qf empírica para las pérdidas
