@@ -36,6 +36,7 @@ def run(doc, d, add_step):
             doc.append(Command('newline'))
         doc.append(Command('vspace', '0.5em'))
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
+        doc.append(Command('newline'))
         
         add_step(doc, "Sección Conductor Secundario ($s_2$)", r"s_2 = \frac{I_{2,fase}}{J}", f"s_2 = \\frac{{{formatear_numero(d.I2_fase)}}}{{{formatear_numero(d.J)}}}", f"s_2 = {formatear_numero(d.s2)}", "mm^2")
 
@@ -49,7 +50,8 @@ def run(doc, d, add_step):
             doc.append(Command('newline'))
         doc.append(Command('vspace', '0.5em'))
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
-
+        doc.append(Command('newline'))
+        
     # Agregar diagrama de conexionado
     with doc.create(Section('Diagrama de Conexionado', numbering=False)):
         try:
@@ -93,7 +95,8 @@ def run(doc, d, add_step):
                             f"Q_{{b1}} = {formatear_numero(getattr(d, 'Lb1', 0.0))} \\cdot {formatear_numero(getattr(d, 'peso_conductor_primario_kg_m', 0.0))}",
                             f"{formatear_numero(getattr(d, 'Qb1', 0.0))}", "kg")
             doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
-
+            doc.append(Command('newline'))
+            
         with doc.create(Subsection("Bobinado Secundario", numbering=False)):
             add_simple_calc("Longitud Total ($L_{b2}$)",
                             r"L_{b2} = l_m \cdot N_2",
@@ -104,7 +107,8 @@ def run(doc, d, add_step):
                             f"Q_{{b2}} = {formatear_numero(getattr(d, 'Lb2', 0.0))} \\cdot {formatear_numero(getattr(d, 'peso_conductor_secundario_kg_m', 0.0))}",
                             f"{formatear_numero(getattr(d, 'Qb2', 0.0))}", "kg")
             doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
-
+            doc.append(Command('newline'))
+            
         # CORREGIDO: Mostrar peso total del cobre calculado considerando el número de fases
         factor_fases = 3 if getattr(d, 'fases', 1) == 3 else 1
         Qc_por_bobinado = getattr(d, 'Qc_por_bobinado', 0.0)

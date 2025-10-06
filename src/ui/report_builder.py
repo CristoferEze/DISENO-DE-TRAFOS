@@ -19,6 +19,7 @@ def add_calculation_step(doc, titulo, formula, valores, resultado, unidad):
     doc.append(Math(data=[NoEscape(f"{resultado} \\; {unidad_latex}")], escape=False))
     doc.append(Command('vspace', '0.5em'))
     doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.2pt']))
+    doc.append(Command('newline'))
     doc.append(Command('vspace', '0.3em'))
 
 def generate_full_report_document(diseno, work_dir=None):

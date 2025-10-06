@@ -27,12 +27,26 @@ def run(doc, d, add_step):
                 if 'detalles' in step_data and step_data['detalles']:
                     for pieza_detalle in step_data['detalles']:
                         
-                        # 0. Mostrar fórmula de largo específica si está disponible
-                        if pieza_detalle.get('formula_largo'):
-                            formula_largo = pieza_detalle['formula_largo']
-                            largo_cm = pieza_detalle.get('largo_cm', 0)
-                            doc.append(NoEscape(f"\\textbf{{Largo de {pieza_detalle.get('nombre', 'pieza')}:}} $L = {formula_largo} = {largo_cm:.2f}$ cm"))
-                            doc.append(Command('newline'))
+                        # 0. Mostrar información específica de la pieza según el tipo de corte
+                        tipo_corte = pieza_detalle.get('tipo_corte', 'Recto')
+                        
+                        if tipo_corte == 'Diagonal':
+                            # Para cortes diagonales, mostrar información de área
+                            if 'area' in pieza_detalle:
+                                area_cm2 = pieza_detalle['area']
+                                doc.append(NoEscape(f"\\textbf{{Área de {pieza_detalle.get('nombre', 'pieza')}:}} {area_cm2:.2f} cm²"))
+                                doc.append(Command('newline'))
+                            formula_largo = pieza_detalle.get('formula_largo', '')
+                            if formula_largo:
+                                doc.append(NoEscape(f"\\textbf{{Fórmula:}} {formula_largo}"))
+                                doc.append(Command('newline'))
+                        else:
+                            # Para cortes rectos, mostrar fórmula de largo como antes
+                            if pieza_detalle.get('formula_largo'):
+                                formula_largo = pieza_detalle['formula_largo']
+                                largo_cm = pieza_detalle.get('largo_cm', 0)
+                                doc.append(NoEscape(f"\\textbf{{Largo de {pieza_detalle.get('nombre', 'pieza')}:}} $L = {formula_largo} = {largo_cm:.2f}$ cm"))
+                                doc.append(Command('newline'))
                         
                         # 1. Renderizar el cálculo del NÚMERO DE PIEZAS
                         try:
@@ -91,8 +105,10 @@ def run(doc, d, add_step):
                 total_escalon = step_data.get('peso_total_escalon', 0.0)
                 doc.append(NoEscape(fr"\textbf{{Peso total del escalón {step_num}}}: {total_escalon:.2f} kg"))
                 doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.8pt']))
-
+                doc.append(Command('newline'))
+ 
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.8pt']))
+        doc.append(Command('newline'))
         doc.append(Command('vspace', '1em'))
         peso_total_nucleo = getattr(d, 'Qr', 0.0)
         doc.append(NoEscape(fr"\textbf{{Peso Total del Núcleo (Hierro)}}: $Q_r = \sum Q_e = \mathbf{{{peso_total_nucleo:.2f}}}$ kg"))

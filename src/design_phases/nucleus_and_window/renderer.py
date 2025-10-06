@@ -14,6 +14,7 @@ def run(doc, d, add_step):
             with doc.create(Subsection(NoEscape(r"Tensión de Fase Primaria ($E_{1,fase}$)"), numbering=False)):
                 doc.append(Math(data=[NoEscape(f"E_{{1,fase}} = E_{{1,linea}} = {d.E1_fase:.2f} \\; \\mathrm{{V}}")], escape=False))
             doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
+            doc.append(Command('newline'))
 
         E1_kv = d.E1_fase / 1000.0
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
@@ -35,6 +36,7 @@ def run(doc, d, add_step):
         with doc.create(Subsection(NoEscape(f"Coeficiente de Plenitud del Hierro ($K_r$)"), numbering=False)):
             doc.append(Math(data=[NoEscape(kr_display)], escape=False))
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
+        doc.append(Command('newline'))
         
         # Agregar cálculo del diámetro circunscrito D
         add_step(doc, "Diámetro Circunscrito ($D$)", r"D = 2 \sqrt{\frac{A_n}{\pi \cdot K_r}}", f"D = 2 \\sqrt{{\\frac{{{d.An:.2f}}}{{\\pi \\cdot {d.Kr}}}}}", f"D = {d.D:.2f}", "cm")
@@ -80,6 +82,7 @@ def run(doc, d, add_step):
                     doc.append(NoEscape(fr"\textit{{Error al incluir gráficos: {error_msg}}}"))
 
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
+        doc.append(Command('newline'))
         
         with doc.create(Subsection("Dimensiones de la Ventana", numbering=False)):
             S_VA_str = f"{d.S*1000:,.0f}"

@@ -58,11 +58,23 @@ def run(d, work_dir=None):
                         '2': {'l': ancho_escalon_cm + c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + c'"},
                         '3': {'l': ancho_escalon_cm + 2 * c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 1, 'formula': "a + 2*c'"}
                     }
-                else:  # Diagonal
+                else:  # Diagonal - geometrías trapezoidales
+                    c_prima = getattr(d, 'c_prima', d.c)
+                    # Figura 1: trapecio con base menor = b, base mayor = 2*a+b, altura = a
+                    # Área = (base_menor + base_mayor) * altura / 2
+                    area_fig1 = (d.b + (2 * ancho_escalon_cm + d.b)) * ancho_escalon_cm / 2.0
+                    # Figura 2: trapecio con agujero. Base menor = 2*c'+a, base mayor = 2*c'+3*a, altura = a
+                    # Menos triángulo central de altura = a/2, base = a
+                    area_trapecio_2 = (2*c_prima + ancho_escalon_cm + 2*c_prima + 3*ancho_escalon_cm) * ancho_escalon_cm / 2.0
+                    area_triangulo_central = ancho_escalon_cm * (ancho_escalon_cm/2.0) / 2.0
+                    area_fig2 = area_trapecio_2 - area_triangulo_central
+                    # Figura 3: rectángulo + 2 triángulos. Rectángulo = a*b, triángulos = 2*(a*a/2)/2 = a²/2
+                    area_fig3 = ancho_escalon_cm * d.b + (ancho_escalon_cm * ancho_escalon_cm) / 2.0
+                    
                     piezas_defs = {
-                        '1': {'l': d.b + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 3, 'formula': 'b + a'},
-                        '2': {'l': d.c + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'c + a'},
-                        '3': {'l': d.c * 2.0 + ancho_escalon_cm, 'w': ancho_escalon_cm, 'n_por_capa': 1, 'formula': '2*c + a'}
+                        '1': {'area': area_fig1, 'w': ancho_escalon_cm, 'n_por_capa': 3, 'formula': 'Trapecio: (b + 2a + b) * a / 2'},
+                        '2': {'area': area_fig2, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'Trapecio - triángulo central'},
+                        '3': {'area': area_fig3, 'w': ancho_escalon_cm, 'n_por_capa': 1, 'formula': 'Rectángulo + 2 triángulos: a*b + a²/2'}
                     }
             elif getattr(d, 'fases', 3) == 1:
                 if cut_type == 'Recto':
@@ -71,10 +83,16 @@ def run(d, work_dir=None):
                         '1': {'l': ancho_escalon_cm + d.b, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'a + b'},
                         '2': {'l': ancho_escalon_cm + 2 * c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + 2*c'"}
                     }
-                else:  # Diagonal
+                else:  # Diagonal - geometrías trapezoidales para monofásico
+                    c_prima = getattr(d, 'c_prima', d.c)
+                    # Figura 1: trapecio con base menor = b, base mayor = 2*a+b, altura = a
+                    area_fig1_mono = (d.b + (2 * ancho_escalon_cm + d.b)) * ancho_escalon_cm / 2.0
+                    # Figura 2: trapecio con base menor = c', base mayor = 2*a+c', altura = a
+                    area_fig2_mono = (c_prima + (2 * ancho_escalon_cm + c_prima)) * ancho_escalon_cm / 2.0
+                    
                     piezas_defs = {
-                        '1': {'l': d.b, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'b'},
-                        '2': {'l': d.c + (2 * ancho_escalon_cm), 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'c + 2*a'}
+                        '1': {'area': area_fig1_mono, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'Trapecio: (b + 2a + b) * a / 2'},
+                        '2': {'area': area_fig2_mono, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "Trapecio: (c' + 2a + c') * a / 2"}
                     }
 
             if not piezas_defs:
@@ -85,8 +103,14 @@ def run(d, work_dir=None):
 
             for nombre, pieza in piezas_defs.items():
                 num_piezas_total = num_laminas * pieza['n_por_capa']
-                volumen_una_lamina = pieza['l'] * pieza['w'] * espesor_lamina_cm
-                # Aplicar factor de apilamiento (explica el 0.975)
+                # Usar área para geometrías trapezoidales o l*w para rectangulares
+                if 'area' in pieza:
+                    volumen_una_lamina = pieza['area'] * espesor_lamina_cm
+                    largo_efectivo = pieza['area'] / pieza['w']  # Para mostrar en las dimensiones
+                else:
+                    volumen_una_lamina = pieza['l'] * pieza['w'] * espesor_lamina_cm
+                    largo_efectivo = pieza['l']
+                # Aplicar factor de apilamiento
                 peso_total_tipo = volumen_una_lamina * rho_kg_cm3 * num_piezas_total * factor_apilamiento
 
                 # --- INICIO DE LA CORRECCIÓN ---
@@ -99,23 +123,31 @@ def run(d, work_dir=None):
                 resultado_num_piezas = f"N = {num_piezas_total}"
 
                 # 2. Datos para el cálculo del PESO (incluyendo factor de apilamiento)
-                formula_peso = r"Q_{pieza} = (l \times w \times e_{lam}) \times N_{piezas} \times \rho_{acero} \times f_{apilamiento}"
-                valores_peso = (
-                    fr"Q_{{{nombre}}} = ({pieza['l']:.2f} \times {pieza['w']:.2f} \times {espesor_lamina_cm:.4f}) "
-                    fr"\times {num_piezas_total} \times {rho_kg_cm3:.5f} \times {factor_apilamiento:.3f}"
-                )
+                if 'area' in pieza:
+                    formula_peso = r"Q_{pieza} = \text{Área} \times e_{lam} \times N_{piezas} \times \rho_{acero} \times f_{apilamiento}"
+                    valores_peso = (
+                        fr"Q_{{{nombre}}} = {pieza['area']:.2f} \times {espesor_lamina_cm:.4f} "
+                        fr"\times {num_piezas_total} \times {rho_kg_cm3:.5f} \times {factor_apilamiento:.3f}"
+                    )
+                else:
+                    formula_peso = r"Q_{pieza} = (l \times w \times e_{lam}) \times N_{piezas} \times \rho_{acero} \times f_{apilamiento}"
+                    valores_peso = (
+                        fr"Q_{{{nombre}}} = ({pieza['l']:.2f} \times {pieza['w']:.2f} \times {espesor_lamina_cm:.4f}) "
+                        fr"\times {num_piezas_total} \times {rho_kg_cm3:.5f} \times {factor_apilamiento:.3f}"
+                    )
 
                 # Agregar información sobre la fórmula de largo específica
                 formula_largo = pieza.get('formula', 'L = ?')
                 
-                detalles_escalon.append({
+                # Preparar el detalle de la pieza
+                detalle_pieza = {
                     'nombre': f'Figura {nombre}',
                     'num_piezas': num_piezas_total,
                     'peso_kg': peso_total_tipo,
                     'ancho_lamina_cm': ancho_escalon_cm,
                     'espesor_lamina_mm': espesor_lamina_mm,
                     'factor_apilamiento': factor_apilamiento,
-                    'largo_cm': pieza['l'],
+                    'largo_cm': largo_efectivo,
                     'formula_largo': formula_largo,
                     'tipo_corte': cut_type,
                     # Guardar ambos conjuntos de datos en el diccionario con las claves correctas
@@ -124,18 +156,33 @@ def run(d, work_dir=None):
                     'resultado_num_piezas': resultado_num_piezas,
                     'formula_peso': formula_peso,
                     'valores_peso': valores_peso,
-                })
+                }
+                
+                # Agregar área si existe para geometrías trapezoidales
+                if 'area' in pieza:
+                    detalle_pieza['area'] = pieza['area']
+                
+                detalles_escalon.append(detalle_pieza)
                 # --- FIN DE LA CORRECCIÓN ---
                 peso_total_escalon += peso_total_tipo
 
             plot_path = None
             try:
+                # Proveer al generador de gráficos los detalles de las piezas calculadas
+                # para que los plotters usen las longitudes exactas ya determinadas.
+                # Se guarda temporalmente en el objeto 'd' y se elimina después.
                 if isinstance(work_dir, str) and work_dir:
                     plot_output_dir = os.path.join(work_dir, 'temp', f'step_{i + 1}')
                     os.makedirs(plot_output_dir, exist_ok=True)
+                    d._detalles_para_plot = detalles_escalon
                     plot_path = lamination_plotters.generate_plot(d, output_dir=plot_output_dir, step_index=i)
+                    if hasattr(d, '_detalles_para_plot'):
+                        delattr(d, '_detalles_para_plot')
                 else:
+                    d._detalles_para_plot = detalles_escalon
                     plot_path = lamination_plotters.generate_plot(d, output_dir=f'temp/step_{i + 1}', step_index=i)
+                    if hasattr(d, '_detalles_para_plot'):
+                        delattr(d, '_detalles_para_plot')
             except Exception as e:
                 print(f"Advertencia: No se pudo generar el gráfico para el escalón {i+1}. Error: {e}")
 

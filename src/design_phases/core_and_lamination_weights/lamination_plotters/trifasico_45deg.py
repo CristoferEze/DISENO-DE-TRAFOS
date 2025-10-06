@@ -1,18 +1,19 @@
 import os
+import re
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import numpy as np
 
 def draw(d, output_dir='temp', step_index=0):
     """
-    Dibuja el ensamble y las piezas de un núcleo trifásico con corte a 45 grados.
-    Las geometrías se definen mediante polígonos y se colocan de forma que el
-    núcleo cierre correctamente. Devuelve la ruta absoluta del PNG generado.
+    Dibuja el ensamble y las piezas de un núcleo trifásico diagonal con geometrías específicas
+    y calcula el área de cada pieza. El ensamble muestra yugos superior e inferior como piezas únicas.
     """
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f'lamination_trifasico_45deg_step_{step_index + 1}.png')
 
-    fig = plt.figure(figsize=(10, 8))
-    gs = fig.add_gridspec(4, 1, height_ratios=[4, 1, 1, 1])
+    fig = plt.figure(figsize=(12, 14))
+    gs = fig.add_gridspec(4, 1, height_ratios=[4, 2, 2, 2])
     ax_main = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0])
     ax2 = fig.add_subplot(gs[2, 0])
@@ -20,89 +21,144 @@ def draw(d, output_dir='temp', step_index=0):
 
     # --- 1. CÁLCULO DE DIMENSIONES ---
     b_mm = getattr(d, 'b', 0.0) * 10.0
-    c_mm = getattr(d, 'c', 0.0) * 10.0
+    c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
     current_a_mm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0) * 10.0
-    w = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
+    a = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
 
-    # --- 2. DEFINICIÓN DE FORMAS CORREGIDAS (vértices) ---
-    # Corrigiendo las dimensiones para que coincidan con los cálculos
+    # --- 1.b. Detectar overrides provenientes de calculation.py (_detalles_para_plot)
+    override = getattr(d, '_detalles_para_plot', None)
+    mapping = {}
+    if override:
+        for det in override:
+            name = det.get('nombre', '')
+            m = re.search(r'(\d+)', str(name))
+            if m:
+                try:
+                    val = det.get('largo_cm', None)
+                    if val is not None:
+                        mapping[m.group(1)] = float(val) * 10.0  # mm
+                except Exception:
+                    # ignorar valores no numéricos
+                    pass
+
+    # --- 2. DIBUJO DEL ENSAMBLE REALISTA Y CORREGIDO ---
+    # Columnas (Piezas 1 y 3)
+    col_left = [[-a, -a], [0, 0], [0, b_mm], [-a, b_mm + a]]
+    x_offset_col_center = c_prima_mm
+    col_center = [[x + x_offset_col_center, y] for x, y in [[0, 0], [a/2, -a/2], [a, 0], [a, b_mm], [a/2, b_mm+a/2], [0, b_mm]]]
+    x_offset_col_right = c_prima_mm + a + c_prima_mm
+    col_right = [[x + x_offset_col_right, y] for x, y in [[0, 0], [a, -a], [a, b_mm+a], [0, b_mm]]]
     
-    # Pieza 1 (Columnas laterales): altura corregida para trifásico
-    h_col = b_mm + w  # Solo ventana + ancho de lámina
-    piece1_shape = [[0, 0], [w, 0], [w, h_col], [0, h_col]]
+    # Yugos superior e inferior como PIEZAS ÚNICAS (Pieza 2)
+    yoke_bottom = [
+        [-a, -a],                                       # Esquina inf-izq exterior
+        [x_offset_col_right + a, -a],                   # Esquina inf-der exterior
+        [x_offset_col_right, 0],                        # Esquina inf-der interior
+        [x_offset_col_center + a, 0],                   # Lado derecho de la muesca
+        [x_offset_col_center + a/2, -a/2],              # Punta de la muesca (encaja con col_center)
+        [x_offset_col_center, 0],                       # Lado izquierdo de la muesca
+        [0, 0],                                         # Esquina inf-izq interior
+    ]
+    yoke_top = [
+        [-a, b_mm + a],                                 # Esquina sup-izq exterior
+        [x_offset_col_right + a, b_mm + a],             # Esquina sup-der exterior
+        [x_offset_col_right, b_mm],                     # Esquina sup-der interior
+        [x_offset_col_center + a, b_mm],                # Lado derecho de la muesca
+        [x_offset_col_center + a/2, b_mm + a/2],        # Punta de la muesca (encaja con col_center)
+        [x_offset_col_center, b_mm],                    # Lado izquierdo de la muesca
+        [0, b_mm],                                      # Esquina sup-izq interior
+    ]
 
-    # Pieza 3 (Columna central): altura igual a las laterales
-    piece3_shape = [[0, 0], [w, 0], [w, h_col], [0, h_col]]
-
-    # Pieza 2 (Yugo): longitud corregida para trifásico
-    # Longitud = c + ancho_lámina (yugo corto)
-    yoke_len = c_mm + w
-    piece2_shape = [[0, 0], [yoke_len, 0], [yoke_len, w], [0, w]]
+    # Añadir polígonos al ensamble
+    ax_main.add_patch(patches.Polygon(col_left, closed=True, fc='#FFDDC1', ec='k'))
+    ax_main.add_patch(patches.Polygon(col_right, closed=True, fc='#FFDDC1', ec='k'))
+    ax_main.add_patch(patches.Polygon(col_center, closed=True, fc='#C1FFD7', ec='k'))
+    ax_main.add_patch(patches.Polygon(yoke_bottom, closed=True, fc='#D7E3FF', ec='k'))
+    ax_main.add_patch(patches.Polygon(yoke_top, closed=True, fc='#D7E3FF', ec='k'))
     
-    # Pieza 4 (Yugo largo): longitud = 2*c + ancho_lámina
-    yoke_long_len = 2 * c_mm + w
-    piece4_shape = [[0, 0], [yoke_long_len, 0], [yoke_long_len, w], [0, w]]
+    # Etiquetas del ensamble corregidas
+    ax_main.text(-a/2, b_mm/2, '1', ha='center', va='center', fontsize=16, weight='bold')
+    ax_main.text(x_offset_col_right, b_mm/2, '1', ha='center', va='center', fontsize=16, weight='bold')
+    ax_main.text(c_prima_mm + a/2, b_mm/2, '3', ha='center', va='center', fontsize=16, weight='bold')
+    ax_main.text(c_prima_mm + a/2, -a*0.8, '2', ha='center', va='center', fontsize=16, weight='bold')
+    ax_main.text(c_prima_mm + a/2, b_mm + a*0.8, '2', ha='center', va='center', fontsize=16, weight='bold')
+    ax_main.set_title(f"Ensamble Trifásico 45° - Escalón {step_index + 1}\nAncho de Lámina (a): {a:.1f} mm")
 
-    # --- 3. DIBUJO DEL ENSAMBLE CORREGIDO (posición final) ---
+    # --- 3. CÁLCULO DE ÁREAS Y DIBUJO DE PIEZAS INDIVIDUALES (Sin cambios) ---
+    offset = a * 0.6
+
+    # --- Pieza 1: Trapecio ---
+    # Dimensiones del trapecio 1
+    base_menor_1 = b_mm
+    altura_1 = a
+    base_mayor_1 = 2 * a + b_mm
     
-    # Yugo inferior izquierdo (Pieza 2)
-    ax_main.add_patch(patches.Polygon(piece2_shape, closed=True, fc='lightblue', ec='k'))
-    ax_main.text(yoke_len/2, w/2, '2', ha='center', va='center', fontsize=12)
+    # Dibujo de la pieza 1 y sus dimensiones
+    p1_shape = [[0, 0], [base_mayor_1, 0], [base_menor_1 + a, altura_1], [a, altura_1]]
+    ax1.add_patch(patches.Polygon(p1_shape, closed=True, fc='#FFDDC1', ec='k'))
+    ax1.text(base_mayor_1/2, altura_1/2, '1', ha='center', va='center', fontsize=14)
+    ax1.annotate(f'Base Mayor: {base_mayor_1:.1f}', xy=(base_mayor_1/2, 0), xytext=(base_mayor_1/2, -offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
+    ax1.annotate(f'Base Menor: {base_menor_1:.1f}', xy=(base_mayor_1/2, altura_1), xytext=(base_mayor_1/2, altura_1 + offset), arrowprops=dict(arrowstyle='-'), ha='center', va='bottom')
+    ax1.annotate(f'Altura: {altura_1:.1f}', xy=(0, altura_1/2), xytext=(-offset*2, altura_1/2), arrowprops=dict(arrowstyle='<->'), ha='center', va='center')
+    # Mostrar largo calculado (override) cuando exista, si no usar la base mayor como referencia
+    l1_mm = mapping.get('1', base_mayor_1)
+    ax1.set_title(f"Pieza 1 (Trapecio) — Largo mostrado: {l1_mm:.1f} mm")
+    
+    # --- Pieza 2: Trapecio con corte ---
+    # Dimensiones del trapecio 2 (antes del corte)
+    base_menor_2 = 2 * c_prima_mm + a
+    altura_2 = a
+    base_mayor_2 = 2 * c_prima_mm + 3 * a
+    
+    # Dibujo de la pieza 2 y sus dimensiones
+    p2_shape = [[0, 0], [base_mayor_2, 0], [base_menor_2 + a, altura_2], [a, altura_2]]
+    ax2.add_patch(patches.Polygon(p2_shape, closed=True, fc='#D7E3FF', ec='k'))
+    corte_centro_x = base_mayor_2 / 2
+    corte_shape = [[corte_centro_x - a/2, altura_2], [corte_centro_x + a/2, altura_2], [corte_centro_x, altura_2 - a/2]]
+    ax2.add_patch(patches.Polygon(corte_shape, closed=True, fc='white', ec='red'))
+    ax2.text(base_mayor_2/2, altura_2/3, '2', ha='center', va='center', fontsize=14)
+    ax2.annotate(f'Base Mayor: {base_mayor_2:.1f}', xy=(base_mayor_2/2, 0), xytext=(base_mayor_2/2, -offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
+    ax2.annotate(f'Base Menor (antes del corte): {base_menor_2:.1f}', xy=(base_mayor_2/2, altura_2), xytext=(base_mayor_2/2, altura_2 + offset), arrowprops=dict(arrowstyle='-'), ha='center', va='bottom')
+    ax2.annotate(f'Altura: {altura_2:.1f}', xy=(0, altura_2/2), xytext=(-offset*2, altura_2/2), arrowprops=dict(arrowstyle='<->'), ha='center', va='center')
+    # Mostrar largo calculado (override) cuando exista, si no usar la base mayor como referencia
+    l2_mm = mapping.get('2', base_mayor_2)
+    ax2.set_title(f"Pieza 2 (Yugo - con corte) — Largo mostrado: {l2_mm:.1f} mm")
 
-    # Columna izquierda (Pieza 1)
-    col_left = [[x, y + w] for x, y in piece1_shape]
-    ax_main.add_patch(patches.Polygon(col_left, closed=True, fc='lightcoral', ec='k'))
-    ax_main.text(w/2, w + h_col/2, '1', ha='center', va='center', fontsize=12)
+    # --- Pieza 3: Rectángulo + 2 Triángulos ---
+    rect_ancho_3, rect_largo_3 = a, b_mm
+    tri_base_3, tri_altura_3 = a, a / 2.0
+    p3_shape = [[0, 0], [rect_ancho_3, 0], [rect_ancho_3, rect_largo_3], [0, rect_largo_3]]
+    ax3.add_patch(patches.Polygon(p3_shape, closed=True, fc='#C1FFD7', ec='k'))
+    tri_sup = [[0, rect_largo_3], [rect_ancho_3, rect_largo_3], [rect_ancho_3/2, rect_largo_3 + tri_altura_3]]
+    tri_inf = [[0, 0], [rect_ancho_3, 0], [rect_ancho_3/2, -tri_altura_3]]
+    ax3.add_patch(patches.Polygon(tri_sup, closed=True, fc='#C1FFD7', ec='k'))
+    ax3.add_patch(patches.Polygon(tri_inf, closed=True, fc='#C1FFD7', ec='k'))
+    ax3.text(rect_ancho_3/2, rect_largo_3/2, '3', ha='center', va='center', fontsize=14)
+    ax3.annotate(f'Ancho: {rect_ancho_3:.1f}', xy=(rect_ancho_3/2, -tri_altura_3), xytext=(rect_ancho_3/2, -tri_altura_3 - offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
+    ax3.annotate(f'Largo Rect.: {rect_largo_3:.1f}', xy=(rect_ancho_3+offset, rect_largo_3/2), xytext=(rect_ancho_3+offset, rect_largo_3/2), ha='left', va='center')
+    # Mostrar largo calculado (override) cuando exista, si no usar el largo del rectángulo como referencia
+    l3_mm = mapping.get('3', rect_largo_3)
+    ax3.set_title(f"Pieza 3 (Rectángulo+Triángulos) — Largo mostrado: {l3_mm:.1f} mm")
 
-    # Columna central (Pieza 3) desplazada en X
-    x_center = yoke_len
-    col_center = [[x + x_center, y + w] for x, y in piece3_shape]
-    ax_main.add_patch(patches.Polygon(col_center, closed=True, fc='lightgreen', ec='k'))
-    ax_main.text(x_center + w/2, w + h_col/2, '3', ha='center', va='center', fontsize=12)
-
-    # Yugo inferior derecho (Pieza 2)
-    x_right_yoke = x_center + w
-    yoke_right = [[x + x_right_yoke, y] for x, y in piece2_shape]
-    ax_main.add_patch(patches.Polygon(yoke_right, closed=True, fc='lightblue', ec='k'))
-    ax_main.text(x_right_yoke + yoke_len/2, w/2, '2', ha='center', va='center', fontsize=12)
-
-    # Columna derecha (Pieza 1)
-    x_col_right = x_right_yoke + yoke_len
-    col_right = [[x + x_col_right, y + w] for x, y in piece1_shape]
-    ax_main.add_patch(patches.Polygon(col_right, closed=True, fc='lightcoral', ec='k'))
-    ax_main.text(x_col_right + w/2, w + h_col/2, '1', ha='center', va='center', fontsize=12)
-
-    # Yugo superior (Pieza 4 - yugo largo)
-    x_top_yoke = w
-    y_top = w + h_col
-    yoke_top = [[x + x_top_yoke, y + y_top] for x, y in piece4_shape]
-    ax_main.add_patch(patches.Polygon(yoke_top, closed=True, fc='lightyellow', ec='k'))
-    ax_main.text(x_top_yoke + yoke_long_len/2, y_top + w/2, '4', ha='center', va='center', fontsize=12)
-
-    # Etiquetas y título
-    ax_main.set_title(f"Trifásico Diagonal - Escalón {step_index + 1}\nAncho de Lámina: {w:.1f} mm")
-
-    # --- 4. DIBUJO DE PIEZAS INDIVIDUALES CORREGIDAS ---
-    ax1.set_title(f"Pieza 1 (Columna): {h_col:.1f} × {w:.1f} mm")
-    ax1.add_patch(patches.Polygon(piece1_shape, closed=True, fc='lightcoral', ec='k'))
-    ax1.text(w/2, h_col/2, '1', ha='center', va='center', fontsize=14)
- 
-    ax2.set_title(f"Pieza 2 (Yugo Corto): {yoke_len:.1f} × {w:.1f} mm")
-    ax2.add_patch(patches.Polygon(piece2_shape, closed=True, fc='lightblue', ec='k'))
-    ax2.text(yoke_len/2, w/2, '2', ha='center', va='center', fontsize=14)
- 
-    ax3.set_title(f"Pieza 3 (Yugo Largo): {yoke_long_len:.1f} × {w:.1f} mm")
-    ax3.add_patch(patches.Polygon(piece4_shape, closed=True, fc='lightyellow', ec='k'))
-    ax3.text(yoke_long_len/2, w/2, '3', ha='center', va='center', fontsize=14)
- 
-    # --- INICIO DE LA CORRECCIÓN ---
-    # Aplicar configuraciones comunes a TODOS los subplots
-    for ax in [ax_main, ax1, ax2, ax3]:
-        ax.axis('equal')
-        ax.axis('off')
-    # --- FIN DE LA CORRECCIÓN ---
-
-    plt.tight_layout(pad=1.5)
+    # --- AJUSTES FINALES Y ESCALA ---
+    for ax in [ax_main, ax1, ax2, ax3]: ax.axis('equal'); ax.axis('off')
+    plt.tight_layout(pad=2.0, h_pad=3.0)
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
     return os.path.abspath(output_path)
+
+# --- INICIO: Ejemplo de uso y Mock de datos ---
+if __name__ == '__main__':
+    class MockDimensions:
+        def __init__(self):
+            self.b = 30.0
+            self.c_prima = 15.0
+            self.anchos = [6.0]
+            self.g = 6.0
+            self._detalles_para_plot = None
+
+    d_simulado = MockDimensions()
+    output_directory = 'output_test'
+    ruta_imagen = draw(d_simulado, output_dir=output_directory, step_index=0)
+    print(f"Imagen de prueba para 'trifasico_45deg' guardada en: {ruta_imagen}")
+# --- FIN: Ejemplo de uso y Mock de datos ---

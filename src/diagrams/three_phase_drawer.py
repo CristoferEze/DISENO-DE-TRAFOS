@@ -106,41 +106,27 @@ def _draw_delta_left(ax, terminals, phases):
 def _dispatch_wiring(ax, conn_type, terminals, side, phase_index):
     """
     Decide qué función de dibujo modular llamar basado en la conexión y el índice.
-    Añade debug para trazar la decisión y los parámetros pasados.
     """
     phases = ['U', 'V', 'W'] if side == 'primary' else ['u', 'v', 'w']
     has_neutral = 'N' in conn_type
 
-    # Debug: mostrar parámetros de entrada al despachador
-    print(f"DEBUG three_phase_drawer._dispatch_wiring: conn_type={conn_type}, side={side}, phase_index={phase_index}, has_neutral={has_neutral}, phases={phases}")
-    # Mostrar un resumen de los terminales pasados (evitar demasiada verbosidad)
-    try:
-        term_keys = list(terminals.keys())
-        print(f"DEBUG terminals keys ({side}): {term_keys}")
-    except Exception as e:
-        print(f"DEBUG: no se pudo listar terminales: {e}")
 
     if 'D' in conn_type:
         # Los índices 2, 4, 8, 10 suelen tener secuencia de fase inversa
         if phase_index in [2, 4, 8, 10]:
-            print("DEBUG dispatch: Delta (inverso) -> _draw_delta_left")
             _draw_delta_left(ax, terminals, phases)
         else:
-            print("DEBUG dispatch: Delta (normal) -> _draw_delta_right")
             _draw_delta_right(ax, terminals, phases)
             
     elif 'Y' in conn_type:
         # CORRECCIÓN: La inversión de polaridad se da en impares, pero el grupo 11
         # es una excepción común que se considera conexión "directa" o no invertida.
         is_inverted = (phase_index % 2 != 0 and phase_index != 11)
-        print(f"DEBUG dispatch: Star detected, is_inverted={is_inverted}")
         
         # Para el primario, nunca se invierte. Para el secundario, depende del índice.
         if side == 'secondary' and is_inverted:
-            print("DEBUG dispatch: Star (neutro arriba) -> _draw_star_above")
             _draw_star_above(ax, terminals, has_neutral, phases)
         else:
-            print("DEBUG dispatch: Star (neutro abajo) -> _draw_star_below")
             _draw_star_below(ax, terminals, has_neutral, phases)
 
 def draw(ax, d):
@@ -162,8 +148,6 @@ def draw(ax, d):
         terminals['primary'][f'{phase}2'] = end
         ax.text(x_coords[i], start[1] + 0.2, f'{phase}', ha='center', va='bottom', fontsize=12, color='black')
         ax.text(x_coords[i], end[1] - 0.2, f"{phase}'", ha='center', va='top', fontsize=12, color='black')
-        # Debug: coordenadas y anotaciones de la bobina primaria
-        print(f"DEBUG draw primary coil: phase={phase} center_x={x_coords[i]} start={start} end={end} labels=('{phase}', \"{phase}'\")")
 
     ax.text(5, 3.05, 'SECUNDARIO', ha='center', fontsize=14, fontweight='bold')
     for i, phase in enumerate(phases_upper):
@@ -173,29 +157,17 @@ def draw(ax, d):
         terminals['secondary'][f'{phase.lower()}2'] = end
         ax.text(x_coords[i], start[1] + 0.2, f'{phase.lower()}', ha='center', va='bottom', fontsize=12, color='black')
         ax.text(x_coords[i], end[1] - 0.2, f"{phase.lower()}'", ha='center', va='top', fontsize=12, color='black')
-        # Debug: coordenadas y anotaciones de la bobina secundaria
-        print(f"DEBUG draw secondary coil: phase={phase.lower()} center_x={x_coords[i]} start={start} end={end} labels=('{phase.lower()}', \"{phase.lower()}'\")")
 
     # --- ANALIZAR GRUPO DE CONEXIÓN Y DESPACHAR DIBUJO ---
     conn_str = getattr(d, 'conn', 'Dyn5').upper()
-    # Debug: mostrar qué string de conexión viene en 'd'
-    print(f"DEBUG three_phase_drawer.draw: d.conn='{getattr(d, 'conn', None)}' -> conn_str='{conn_str}'")
     match = re.search(r'([A-Z])([A-Z]N?|N?[A-Z])(\d+)', conn_str)
     if match:
         conn1 = match.group(1)
         conn2 = match.group(2)
         phase_index = int(match.group(3))
-        print(f"DEBUG parse: conn1={conn1}, conn2={conn2}, phase_index={phase_index}")
     else: # Fallback
         conn1, conn2, phase_index = 'D', 'YN', 5
-        print("DEBUG parse: fallback used")
 
-    # Debug: mostrar resumen de terminales creados (primary/secondary)
-    try:
-        print(f"DEBUG terminals primary keys: {list(terminals['primary'].keys())}")
-        print(f"DEBUG terminals secondary keys: {list(terminals['secondary'].keys())}")
-    except Exception as e:
-        print(f"DEBUG: error mostrando terminales: {e}")
 
     _dispatch_wiring(ax, conn1, terminals['primary'], 'primary', phase_index)
     _dispatch_wiring(ax, conn2, terminals['secondary'], 'secondary', phase_index)

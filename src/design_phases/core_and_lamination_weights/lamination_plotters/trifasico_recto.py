@@ -1,4 +1,5 @@
 # src/design_phases/nucleus_and_window/lamination_plotters/trifasico_recto_ajustado.py
+import re
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
@@ -33,24 +34,56 @@ def draw(d, output_dir, step_index=0):
     # Usar 'g' como fallback si el ancho del escalón es 0
     lamination_width_mm = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
 
-    # --- NUEVO ENFOQUE: Diccionario como "Fuente Única de la Verdad" para las dimensiones ---
+    # Si el cálculo anterior proporcionó longitudes por figura, usarlas para
+    # sobreescribir las dimensiones que se van a dibujar (prioridad alta).
+    override = getattr(d, '_detalles_para_plot', None)
+    mapping = {}
+    if override:
+        for det in override:
+            name = det.get('nombre', '')
+            m = re.search(r'(\d+)', str(name))
+            if m:
+                mapping[m.group(1)] = det.get('largo_cm', None)
+
+    # Construir dictionary de dimensiones usando los valores calculados o los overrides
     piece_dims = {
         '1': {
             # Pieza 1 (Columna): Su ancho es el de la lámina, su alto es la ventana + yugo.
             'width': lamination_width_mm,
-            'height': b_mm + lamination_width_mm
+            'height': (float(mapping.get('1')) * 10.0) if mapping.get('1') is not None else (b_mm + lamination_width_mm)
         },
         '2': {
             # Pieza 2 (Yugo Corto): Su alto es el de la lámina, su largo es la ventana + columna.
-            'width': c_mm + lamination_width_mm,
+            'width': (float(mapping.get('2')) * 10.0) if mapping.get('2') is not None else (c_mm + lamination_width_mm),
             'height': lamination_width_mm
         },
         '3': {
             # Pieza 3 (Yugo Largo): Su alto es el de la lámina, su largo es 2 ventanas + columna.
-            'width': (2 * c_mm) + lamination_width_mm,
+            'width': (float(mapping.get('3')) * 10.0) if mapping.get('3') is not None else ((2 * c_mm) + lamination_width_mm),
             'height': lamination_width_mm
         }
     }
+
+    # --- ENFOQUE ACTUALIZADO: Usar valores calculados o valores por defecto ---
+    # Solo sobreescribir el diccionario si no se definió arriba con overrides
+    if not mapping:
+        piece_dims = {
+            '1': {
+                # Pieza 1 (Columna): Su ancho es el de la lámina, su alto es la ventana + yugo.
+                'width': lamination_width_mm,
+                'height': b_mm + lamination_width_mm
+            },
+            '2': {
+                # Pieza 2 (Yugo Corto): Su alto es el de la lámina, su largo es la ventana + columna.
+                'width': c_mm + lamination_width_mm,
+                'height': lamination_width_mm
+            },
+            '3': {
+                # Pieza 3 (Yugo Largo): Su alto es el de la lámina, su largo es 2 ventanas + columna.
+                'width': (2 * c_mm) + lamination_width_mm,
+                'height': lamination_width_mm
+            }
+        }
 
     # --- 2. DIBUJO DEL ENSAMBLE (usando el diccionario 'piece_dims') ---
     

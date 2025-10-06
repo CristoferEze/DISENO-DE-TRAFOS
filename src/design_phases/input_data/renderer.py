@@ -13,6 +13,7 @@ def run(doc, d):
     doc.append(NoEscape(r"\end{center}"))
     doc.append(Command('vspace', '1em'))
     doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.8pt']))
+    doc.append(Command('newline'))
 
     with doc.create(Section('Datos de Entrada y Parámetros Base', numbering=False)):
         doc.append(bold("Potencia (S): ")); doc.append(f"{d.S} kVA, ")
@@ -38,3 +39,4 @@ def run(doc, d):
         doc.append(Math(data=[NoEscape(parametros_base)], escape=False))
 
     doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.8pt']))
+    doc.append(Command('newline'))
