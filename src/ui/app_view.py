@@ -77,7 +77,7 @@ class Application:
             [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Tabla Opcionales:', font=('Helvetica', 10, 'bold'))],
             [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=True)],
-            [sg.Text('Coeficiente Kr:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=True)],
+            [sg.Text('Coeficiente Kf:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=True)],
             [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=True, tooltip='Valor de tabla para pérdidas específicas en el hierro')],
             [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=True)],
             [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=True)]

@@ -29,12 +29,13 @@ def run(doc, d):
         doc.append("Parámetros seleccionados de tablas:")
         doc.append(Command('newline'))
 
-        # CORREGIDO: Usar fa_original para mostrar el valor sin redondear
+        # CORREGIDO: Usar fa_original y Kr_original para mostrar valores sin redondear
         fa_display = getattr(d, 'fa_original', getattr(d, 'fa', 0.975))
+        kf_display = getattr(d, 'Kr_original', getattr(d, 'Kr', 1.0))
         parametros_base = (
             f"B = {d.B_kgauss*1000:.0f} \\, \\mathrm{{gauss}}, "
             f"J = {d.J:.2f} \\, \\mathrm{{A/mm^2}}, "
-            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_f = {d.Kr:.3f}"
+            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_f = {kf_display:.6f}"
         )
         doc.append(Math(data=[NoEscape(parametros_base)], escape=False))
 

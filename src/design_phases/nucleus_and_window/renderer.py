@@ -31,15 +31,17 @@ def run(doc, d, add_step):
         fa_display = getattr(d, 'fa_original', getattr(d, 'fa', 0.975))
         add_step(doc, "Área Bruta ($A_b$)", r"A_b = \frac{A_n}{f_a}", f"A_b = \\frac{{{d.An:.2f}}}{{{fa_display:.3f}}}", f"A_b = {d.Ab:.2f}", "cm^2")
         
-        # Mostrar Kr original y redondeado
-        kr_display = f"K_r = {getattr(d, 'Kr_original', d.Kr):.3f} \\rightarrow {d.Kr}"
-        with doc.create(Subsection(NoEscape(f"Coeficiente de Plenitud del Hierro ($K_r$)"), numbering=False)):
-            doc.append(Math(data=[NoEscape(kr_display)], escape=False))
+        # Mostrar Kf (antes Kr) sin redondear - usar siempre el valor original
+        kf_original = getattr(d, 'Kr_original', d.Kr)
+        kf_display = f"K_f = {kf_original:.6f}"
+        with doc.create(Subsection(NoEscape(f"Coeficiente de Plenitud del Hierro ($K_f$)"), numbering=False)):
+            doc.append(Math(data=[NoEscape(kf_display)], escape=False))
         doc.append(Command('rule', arguments=[NoEscape(r'\linewidth'), '0.4pt']))
         doc.append(Command('newline'))
         
-        # Agregar cálculo del diámetro circunscrito D
-        add_step(doc, "Diámetro Circunscrito ($D$)", r"D = 2 \sqrt{\frac{A_n}{\pi \cdot K_r}}", f"D = 2 \\sqrt{{\\frac{{{d.An:.2f}}}{{\\pi \\cdot {d.Kr}}}}}", f"D = {d.D:.2f}", "cm")
+        # Agregar cálculo del diámetro circunscrito D usando Kf original sin redondear
+        kf_original = getattr(d, 'Kr_original', d.Kr)
+        add_step(doc, "Diámetro Circunscrito ($D$)", r"D = 2 \sqrt{\frac{A_n}{\pi \cdot K_f}}", f"D = 2 \\sqrt{{\\frac{{{d.An:.2f}}}{{\\pi \\cdot {kf_original:.6f}}}}}", f"D = {d.D:.2f}", "cm")
 
         with doc.create(Subsection(NoEscape(f"Cálculo de escalones con su valor a y e"), numbering=False)):
             if not getattr(d, 'anchos', None) or not getattr(d, 'espesores', None):
@@ -87,7 +89,9 @@ def run(doc, d, add_step):
         with doc.create(Subsection("Dimensiones de la Ventana", numbering=False)):
             S_VA_str = f"{d.S*1000:,.0f}"
             An_str = f"{d.An:.3f}"
-            add_step(doc, "Área Ventana ($A_w$)", r"A_w = \frac{S_{VA}}{3.33 \cdot f \cdot B_T \cdot J \cdot K_c \cdot A_n}", f"A_w = \\frac{{{S_VA_str}}}{{3.33 \\cdot {d.f} \\cdot {d.B_tesla:.2f} \\cdot {d.J:.2f} \\cdot {d.Kc:.4f} \\cdot {An_str}}}", f"A_w = {d.Aw:.2f}", "cm^2")
+            # Usar la constante correcta según el tipo de transformador
+            constante = getattr(d, 'constante_ventana', 3.33)
+            add_step(doc, "Área Ventana ($A_w$)", fr"A_w = \frac{{S_{{VA}}}}{{{constante} \cdot f \cdot B_T \cdot J \cdot K_c \cdot A_n}}", f"A_w = \\frac{{{S_VA_str}}}{{{constante} \\cdot {d.f} \\cdot {d.B_tesla:.2f} \\cdot {d.J:.2f} \\cdot {d.Kc:.4f} \\cdot {An_str}}}", f"A_w = {d.Aw:.2f}", "cm^2")
             add_step(doc, "Alto de Ventana (b)", r"b = \sqrt{R_w \cdot A_w}", f"b = \\sqrt{{{d.rel_rw:.2f} \\cdot {d.Aw:.2f}}}", f"b = {d.b:.2f}", "cm")
             add_step(doc, "Distancia entre Ejes (M)", r"M = \frac{A_w}{b} + D", f"M = \\frac{{{d.Aw:.2f}}}{{{d.b:.2f}}} + {d.D:.2f}", f"M = {d.M:.2f}", "cm")
             add_step(doc, "Ancho de Ventana (c)", r"c = M - D", f"c = {d.M:.2f} - {d.D:.2f}", f"c = {d.c:.2f}", "cm")

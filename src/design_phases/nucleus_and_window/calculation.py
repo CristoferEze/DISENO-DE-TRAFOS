@@ -155,13 +155,11 @@ def run(d):
         db_kr_esc = db_kr_acero.get(d.num_escalones, {})
         d.Kr_original = db_kr_esc[utils.sel_clave(db_kr_esc, d.S)]
     
-    # Redondear Kr según configuración (usar ROUND_HALF_UP para evitar 'bankers rounding')
-    if getattr(d, 'redondear_2_decimales', False):
-        d.Kr = float(Decimal(str(d.Kr_original)).quantize(Decimal('1e-2'), rounding=ROUND_HALF_UP))
-    else:
-        d.Kr = float(Decimal(str(d.Kr_original)).quantize(Decimal('1e-3'), rounding=ROUND_HALF_UP))
+    # CORREGIDO: Kr (Kf) NUNCA se redondea, independientemente del modo de redondeo
+    # Se mantiene el valor original para mayor precisión en todos los cálculos
+    d.Kr = float(d.Kr_original)
     
-    # Calcular diámetro circunscrito D usando valores redondeados
+    # Calcular diámetro circunscrito D usando Kr original (sin redondear)
     d.D = 2 * math.sqrt(d.An / (math.pi * d.Kr))
     d.anchos = [factor * d.D for factor in db.dimensiones_escalones_db.get(d.num_escalones, [])]
     d.espesores = []
@@ -175,8 +173,11 @@ def run(d):
 
     # Lógica de _calcular_ventana
     S_VA = d.S * 1000; J_A_m2 = d.J * 1e6; An_m2 = d.An * 1e-4
-    Aw_m2 = (S_VA) / (3.33 * d.f * d.B_tesla * J_A_m2 * d.Kc * An_m2)
+    # Constante según tipo: Monofásico: 2.22, Trifásico: 3.33
+    constante_ventana = 2.22 if d.fases == 1 else 3.33
+    Aw_m2 = (S_VA) / (constante_ventana * d.f * d.B_tesla * J_A_m2 * d.Kc * An_m2)
     d.Aw = Aw_m2 * 1e4
+    d.constante_ventana = constante_ventana  # Guardar para el reporte
     d.b = math.sqrt(d.rel_rw * d.Aw)
     d.M = (d.Aw / d.b) + d.D
     d.c_prima = d.M - d.anchos[0] if d.anchos else None
