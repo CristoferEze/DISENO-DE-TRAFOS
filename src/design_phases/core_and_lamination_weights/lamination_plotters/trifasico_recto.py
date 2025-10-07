@@ -24,18 +24,19 @@ def draw(d, output_dir, step_index=0):
     ax2 = fig.add_subplot(gs[2, :])     # Pieza 2
     ax3 = fig.add_subplot(gs[3, :])     # Pieza 3
     
-    # --- 1. CÁLCULO CENTRALIZADO DE DIMENSIONES ---
+    # --- 1. CÁLCULO CENTRALIZADO DE DIMENSIONES (MODIFICADO: REGLA CUMULATIVA) ---
     # Dimensiones base en mm
     b_mm = getattr(d, 'b', 0.0) * 10.0  # Alto de la ventana
     c_mm = getattr(d, 'c', 0.0) * 10.0  # Ancho de la ventana
-    
-    # Determinar el ancho/grosor de la laminación para el escalón actual
-    current_a_mm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0) * 10.0
-    # Usar 'g' como fallback si el ancho del escalón es 0
-    lamination_width_mm = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
 
-    # Si el cálculo anterior proporcionó longitudes por figura, usarlas para
-    # sobreescribir las dimensiones que se van a dibujar (prioridad alta).
+    # Listas por escalón (valores en cm)
+    anchos_cm = getattr(d, 'anchos', [])
+    espesores_cm = getattr(d, 'espesores', [])
+
+    # Ancho/grosor de la laminación para el escalón actual (mm)
+    lamination_width_mm = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else (getattr(d, 'g', 0.0) * 10.0)
+
+    # Detectar overrides provenientes de calculation.py (_detalles_para_plot)
     override = getattr(d, '_detalles_para_plot', None)
     mapping = {}
     if override:
@@ -45,21 +46,33 @@ def draw(d, output_dir, step_index=0):
             if m:
                 mapping[m.group(1)] = det.get('largo_cm', None)
 
-    # Construir dictionary de dimensiones usando los valores calculados o los overrides
+    # Calcular largos según regla acumulativa
+    largo_1, largo_2, largo_3 = 0.0, 0.0, 0.0
+    if step_index == 0:
+        # Escalón 1: usa su propio ancho 'a0'
+        a0_mm = lamination_width_mm
+        largo_1 = b_mm + a0_mm
+        largo_2 = c_mm + a0_mm
+        largo_3 = (2 * c_mm) + a0_mm
+    else:
+        # Escalones > 1: sumar 2 * e (en mm) para todos los escalones interiores desde el 2° hasta el actual
+        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
+        largo_1 = b_mm + cumulative_e_mm
+        largo_2 = c_mm + cumulative_e_mm
+        largo_3 = (2 * c_mm) + cumulative_e_mm
+
+    # Construir dictionary de dimensiones usando los largos calculados o los overrides
     piece_dims = {
         '1': {
-            # Pieza 1 (Columna): Su ancho es el de la lámina, su alto es la ventana + yugo.
             'width': lamination_width_mm,
-            'height': (float(mapping.get('1')) * 10.0) if mapping.get('1') is not None else (b_mm + lamination_width_mm)
+            'height': (float(mapping.get('1')) * 10.0) if mapping.get('1') is not None else largo_1
         },
         '2': {
-            # Pieza 2 (Yugo Corto): Su alto es el de la lámina, su largo es la ventana + columna.
-            'width': (float(mapping.get('2')) * 10.0) if mapping.get('2') is not None else (c_mm + lamination_width_mm),
+            'width': (float(mapping.get('2')) * 10.0) if mapping.get('2') is not None else largo_2,
             'height': lamination_width_mm
         },
         '3': {
-            # Pieza 3 (Yugo Largo): Su alto es el de la lámina, su largo es 2 ventanas + columna.
-            'width': (float(mapping.get('3')) * 10.0) if mapping.get('3') is not None else ((2 * c_mm) + lamination_width_mm),
+            'width': (float(mapping.get('3')) * 10.0) if mapping.get('3') is not None else largo_3,
             'height': lamination_width_mm
         }
     }
@@ -119,6 +132,22 @@ def draw(d, output_dir, step_index=0):
 
     ax_main.set_title(f"Dimensionado de Laminación - Escalón {step_index + 1}\nAncho de Lámina: {lamination_width_mm:.1f} mm")
 
+    # --- INICIO: AÑADIR COTAS AL ENSAMBLE ---
+    dim_offset = lamination_width_mm * 1.5 if lamination_width_mm != 0 else 10.0
+    # Altura (b)
+    y_start = piece_dims['2']['height']
+    ax_main.annotate('', xy=(-dim_offset, y_start), xytext=(-dim_offset, y_start + b_mm), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax_main.text(-dim_offset * 1.2, y_start + b_mm / 2, f'Altura (b):\n{b_mm:.1f} mm', ha='right', va='center', color='red', fontsize=10, rotation=90)
+    # Ancho (c)
+    x_start = piece_dims['1']['width']
+    ax_main.annotate('', xy=(x_start, -dim_offset), xytext=(x_start + c_mm, -dim_offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax_main.text(x_start + c_mm / 2, -dim_offset * 1.2, f'Ancho (c): {c_mm:.1f} mm', ha='center', va='top', color='blue', fontsize=10)
+    # Grosor (a_n)
+    y_top = y_yugo_sup
+    ax_main.annotate('', xy=(0, y_top + dim_offset), xytext=(lamination_width_mm, y_top + dim_offset), arrowprops=dict(arrowstyle='<->', ec='green'))
+    ax_main.text(lamination_width_mm / 2, y_top + dim_offset * 1.2, f'Grosor (a{step_index}): {lamination_width_mm:.1f} mm', ha='center', va='bottom', color='green', fontsize=10)
+    # --- FIN: AÑADIR COTAS ---
+
     # --- 3. DIBUJO DE PIEZAS INDIVIDUALES (usando el mismo diccionario 'piece_dims') ---
     for ax in [ax1, ax2, ax3]:
         ax.axis('off')
@@ -147,8 +176,31 @@ def draw(d, output_dir, step_index=0):
     for ax in [ax_main, ax1, ax2, ax3]:
         ax.axis('equal')
         ax.axis('off')
-
+    
     plt.tight_layout(pad=1.5)
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
     return os.path.abspath(output_path)
+    
+    
+# --- INICIO: Ejemplo de uso y Mock de datos para 'trifasico_recto' ---
+if __name__ == '__main__':
+    class MockDimensions:
+        def __init__(self):
+            # Dimensiones de la ventana en cm
+            self.b = 30.0
+            self.c = 15.0
+            self.c_prima = 15.0
+            # Anchos de lámina por escalón (cm)
+            self.anchos = [6.0]
+            # Espesores por escalón (cm) — usados por la regla acumulativa
+            self.espesores = [0.5, 0.5]
+            # Valor por defecto de grosor si no hay 'anchos' definido
+            self.g = 6.0
+            self._detalles_para_plot = None
+
+    d_simulado = MockDimensions()
+    output_directory = 'output_test'
+    ruta_imagen = draw(d_simulado, output_dir=output_directory, step_index=0)
+    print(f"Imagen de prueba para 'trifasico_recto' guardada en: {ruta_imagen}")
+# --- FIN: Ejemplo de uso y Mock de datos ---

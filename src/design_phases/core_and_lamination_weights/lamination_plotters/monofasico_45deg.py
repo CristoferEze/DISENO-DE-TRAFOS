@@ -18,13 +18,31 @@ def draw(d, output_dir, step_index=0):
     ax1 = fig.add_subplot(gs[1, 0])
     ax2 = fig.add_subplot(gs[2, 0])
     
-    # --- 1. CÁLCULO DE DIMENSIONES ---
+    # --- 1. CÁLCULO DE DIMENSIONES (MODIFICADO: REGLA CUMULATIVA) ---
     b_mm = getattr(d, 'b', 0.0) * 10.0  # Alto de la ventana en mm
     c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0  # Ancho de ventana en mm
     
-    ancho_cm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0)
-    a_mm = ancho_cm * 10.0 if ancho_cm > 0 else getattr(d, 'g', 0.0) * 10.0
+    # Listas por escalón (valores en cm)
+    anchos_cm = getattr(d, 'anchos', [])
+    espesores_cm = getattr(d, 'espesores', [])
     
+    # Ancho de lámina del escalón actual (en mm)
+    a_mm = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else 0.0
+
+    # Inicializar bases menores que usarán la regla acumulativa
+    base_menor_1, base_menor_2 = 0.0, 0.0
+
+    if step_index == 0:
+        # Escalón 1: usar dimensiones base
+        base_menor_1 = b_mm
+        base_menor_2 = c_prima_mm
+    else:
+        # Escalones > 1: sumar 2 * e (en mm) para todos los escalones interiores desde el 2do hasta el actual
+        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
+        base_menor_1 = b_mm + cumulative_e_mm
+        base_menor_2 = c_prima_mm + cumulative_e_mm
+
+    # Detectar overrides provenientes de calculation.py (_detalles_para_plot)
     override = getattr(d, '_detalles_para_plot', None)
     mapping = {}
     if override:
@@ -51,6 +69,20 @@ def draw(d, output_dir, step_index=0):
     ax_main.text(c_prima_mm / 2, -a_mm / 2, "2", ha='center', va='center', fontsize=20, weight='bold')
     
     ax_main.set_title(f"Ensamble Monofásico 45° - Escalón {step_index + 1}\nAncho lámina (a): {a_mm:.1f} mm")
+
+    # --- INICIO: AÑADIR COTAS AL ENSAMBLE ---
+    dim_offset = a_mm * 1.5 if a_mm != 0 else 10.0
+    # Altura (b)
+    ax_main.annotate('', xy=(-a_mm - dim_offset, 0), xytext=(-a_mm - dim_offset, b_mm), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax_main.text(-a_mm - dim_offset * 1.2, b_mm / 2, f'Altura (b):\n{b_mm:.1f} mm', ha='right', va='center', color='red', fontsize=10, rotation=90)
+    # Ancho (c')
+    ax_main.annotate('', xy=(0, -a_mm - dim_offset), xytext=(c_prima_mm, -a_mm - dim_offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax_main.text(c_prima_mm / 2, -a_mm - dim_offset * 1.2, f'Ancho (c\\\'): {c_prima_mm:.1f} mm', ha='center', va='top', color='blue', fontsize=10)
+    # Grosor (a_n)
+    ax_main.annotate('', xy=(-a_mm, b_mm + a_mm + dim_offset), xytext=(0, b_mm + a_mm + dim_offset), arrowprops=dict(arrowstyle='<->', ec='green'))
+    ax_main.text(-a_mm / 2, b_mm + a_mm + dim_offset * 1.2, f'Grosor (a{step_index}): {a_mm:.1f} mm', ha='center', va='bottom', color='green', fontsize=10)
+    # --- FIN: AÑADIR COTAS ---
+
     ax_main.axis('equal')
     ax_main.axis('off')
 

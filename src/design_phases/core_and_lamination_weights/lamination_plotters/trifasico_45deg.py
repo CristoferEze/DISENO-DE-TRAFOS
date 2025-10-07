@@ -19,11 +19,30 @@ def draw(d, output_dir='temp', step_index=0):
     ax2 = fig.add_subplot(gs[2, 0])
     ax3 = fig.add_subplot(gs[3, 0])
 
-    # --- 1. CÁLCULO DE DIMENSIONES ---
+    # --- INICIO DE LA MODIFICACIÓN: LÓGICA DE CÁLCULO CUMULATIVA ---
     b_mm = getattr(d, 'b', 0.0) * 10.0
     c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
-    current_a_mm = (d.anchos[step_index] if getattr(d, 'anchos', None) and len(d.anchos) > step_index else 0.0) * 10.0
-    a = current_a_mm if current_a_mm > 0 else getattr(d, 'g', 0.0) * 10.0
+    
+    anchos_cm = getattr(d, 'anchos', [])
+    espesores_cm = getattr(d, 'espesores', [])
+
+    a = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else 0.0
+    
+    base_menor_1, base_menor_2, largo_rect_3 = 0.0, 0.0, 0.0
+    
+    if step_index == 0:
+        a0 = a
+        base_menor_1 = b_mm
+        base_menor_2 = 2 * c_prima_mm + a0
+        largo_rect_3 = b_mm
+    else:
+        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
+        a0_mm = anchos_cm[0] * 10.0 if anchos_cm else 0.0 # Necesario para la base del yugo
+        
+        base_menor_1 = b_mm + cumulative_e_mm
+        base_menor_2 = (2 * c_prima_mm + a0_mm) + cumulative_e_mm
+        largo_rect_3 = b_mm + cumulative_e_mm
+    # --- FIN DE LA MODIFICACIÓN ---
 
     # --- 1.b. Detectar overrides provenientes de calculation.py (_detalles_para_plot)
     override = getattr(d, '_detalles_para_plot', None)
@@ -84,14 +103,26 @@ def draw(d, output_dir='temp', step_index=0):
     ax_main.text(c_prima_mm + a/2, b_mm + a*0.8, '2', ha='center', va='center', fontsize=16, weight='bold')
     ax_main.set_title(f"Ensamble Trifásico 45° - Escalón {step_index + 1}\nAncho de Lámina (a): {a:.1f} mm")
 
+    # --- INICIO: AÑADIR COTAS AL ENSAMBLE ---
+    dim_offset = a * 1.5 if a != 0 else 10.0
+    # Altura (b)
+    ax_main.annotate('', xy=(-a - dim_offset, 0), xytext=(-a - dim_offset, b_mm), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax_main.text(-a - dim_offset * 1.2, b_mm / 2, f'Altura (b):\n{b_mm:.1f} mm', ha='right', va='center', color='red', fontsize=10, rotation=90)
+    # Ancho (c')
+    ax_main.annotate('', xy=(0, -a - dim_offset), xytext=(c_prima_mm, -a - dim_offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax_main.text(c_prima_mm / 2, -a - dim_offset * 1.2, f'Ancho (c\\\'): {c_prima_mm:.1f} mm', ha='center', va='top', color='blue', fontsize=10)
+    # Grosor (a_n)
+    ax_main.annotate('', xy=(-a, b_mm + a + dim_offset), xytext=(0, b_mm + a + dim_offset), arrowprops=dict(arrowstyle='<->', ec='green'))
+    ax_main.text(-a / 2, b_mm + a + dim_offset * 1.2, f'Grosor (a{step_index}): {a:.1f} mm', ha='center', va='bottom', color='green', fontsize=10)
+    # --- FIN: AÑADIR COTAS ---
+
     # --- 3. CÁLCULO DE ÁREAS Y DIBUJO DE PIEZAS INDIVIDUALES (Sin cambios) ---
     offset = a * 0.6
 
     # --- Pieza 1: Trapecio ---
-    # Dimensiones del trapecio 1
-    base_menor_1 = b_mm
+    # Dimensiones del trapecio 1 (usar base_menor_1 calculada previamente)
     altura_1 = a
-    base_mayor_1 = 2 * a + b_mm
+    base_mayor_1 = base_menor_1 + 2 * a
     
     # Dibujo de la pieza 1 y sus dimensiones
     p1_shape = [[0, 0], [base_mayor_1, 0], [base_menor_1 + a, altura_1], [a, altura_1]]
@@ -105,10 +136,9 @@ def draw(d, output_dir='temp', step_index=0):
     ax1.set_title(f"Pieza 1 (Trapecio) — Largo mostrado: {l1_mm:.1f} mm")
     
     # --- Pieza 2: Trapecio con corte ---
-    # Dimensiones del trapecio 2 (antes del corte)
-    base_menor_2 = 2 * c_prima_mm + a
+    # Dimensiones del trapecio 2 (usar base_menor_2 calculada previamente)
     altura_2 = a
-    base_mayor_2 = 2 * c_prima_mm + 3 * a
+    base_mayor_2 = base_menor_2 + 2 * a
     
     # Dibujo de la pieza 2 y sus dimensiones
     p2_shape = [[0, 0], [base_mayor_2, 0], [base_menor_2 + a, altura_2], [a, altura_2]]
@@ -125,17 +155,20 @@ def draw(d, output_dir='temp', step_index=0):
     ax2.set_title(f"Pieza 2 (Yugo - con corte) — Largo mostrado: {l2_mm:.1f} mm")
 
     # --- Pieza 3: Rectángulo + 2 Triángulos ---
-    rect_ancho_3, rect_largo_3 = a, b_mm
+    rect_ancho_3, rect_largo_3 = a, largo_rect_3
     tri_base_3, tri_altura_3 = a, a / 2.0
-    p3_shape = [[0, 0], [rect_ancho_3, 0], [rect_ancho_3, rect_largo_3], [0, rect_largo_3]]
+    # Dibujar rectángulo en horizontal (volteado): ancho visual = rect_largo_3, alto visual = rect_ancho_3
+    p3_shape = [[0, 0], [rect_largo_3, 0], [rect_largo_3, rect_ancho_3], [0, rect_ancho_3]]
     ax3.add_patch(patches.Polygon(p3_shape, closed=True, fc='#C1FFD7', ec='k'))
-    tri_sup = [[0, rect_largo_3], [rect_ancho_3, rect_largo_3], [rect_ancho_3/2, rect_largo_3 + tri_altura_3]]
-    tri_inf = [[0, 0], [rect_ancho_3, 0], [rect_ancho_3/2, -tri_altura_3]]
-    ax3.add_patch(patches.Polygon(tri_sup, closed=True, fc='#C1FFD7', ec='k'))
-    ax3.add_patch(patches.Polygon(tri_inf, closed=True, fc='#C1FFD7', ec='k'))
-    ax3.text(rect_ancho_3/2, rect_largo_3/2, '3', ha='center', va='center', fontsize=14)
-    ax3.annotate(f'Ancho: {rect_ancho_3:.1f}', xy=(rect_ancho_3/2, -tri_altura_3), xytext=(rect_ancho_3/2, -tri_altura_3 - offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
-    ax3.annotate(f'Largo Rect.: {rect_largo_3:.1f}', xy=(rect_ancho_3+offset, rect_largo_3/2), xytext=(rect_ancho_3+offset, rect_largo_3/2), ha='left', va='center')
+    # Triángulos a los lados (izquierda y derecha) para mantener la geometría original pero rotada
+    tri_right = [[rect_largo_3, 0], [rect_largo_3, rect_ancho_3], [rect_largo_3 + tri_altura_3, rect_ancho_3/2]]
+    tri_left = [[0, 0], [0, rect_ancho_3], [-tri_altura_3, rect_ancho_3/2]]
+    ax3.add_patch(patches.Polygon(tri_right, closed=True, fc='#C1FFD7', ec='k'))
+    ax3.add_patch(patches.Polygon(tri_left, closed=True, fc='#C1FFD7', ec='k'))
+    ax3.text(rect_largo_3/2, rect_ancho_3/2, '3', ha='center', va='center', fontsize=14)
+    # Anotaciones ajustadas para orientación horizontal
+    ax3.annotate(f'Ancho: {rect_ancho_3:.1f}', xy=(-tri_altura_3, rect_ancho_3/2), xytext=(-tri_altura_3 - offset, rect_ancho_3/2), arrowprops=dict(arrowstyle='-'), ha='right', va='center')
+    ax3.annotate(f'Largo Rect.: {rect_largo_3:.1f}', xy=(rect_largo_3/2, rect_ancho_3 + offset), xytext=(rect_largo_3/2, rect_ancho_3 + offset), ha='center', va='bottom')
     # Mostrar largo calculado (override) cuando exista, si no usar el largo del rectángulo como referencia
     l3_mm = mapping.get('3', rect_largo_3)
     ax3.set_title(f"Pieza 3 (Rectángulo+Triángulos) — Largo mostrado: {l3_mm:.1f} mm")

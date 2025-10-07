@@ -22,6 +22,8 @@ def run(doc, d, add_step):
         S_dev_VA = (d.S * 1000) / d.fases
 
         add_step(doc, "Espiras Secundario ($N_2$)", r"N_2 = \frac{E_{2,fase} \cdot 10^8}{4.44 \cdot f \cdot \Phi}", f"N_2 = \\frac{{{formatear_numero(d.E2_fase)} \\cdot 10^8}}{{4.44 \\cdot {d.f} \\cdot {d.flujo:,.0f}}}", f"N_2 = {d.N2_fase:.0f}", "espiras")
+        # --- MODIFICADO: Se añade el cálculo de espiras del primario basado en el secundario y la relación de transformación ---
+        add_step(doc, "Espiras Primario ($N_1$)", r"N_1 = N_2 \cdot \frac{E_{1,fase}}{E_{2,fase}}", f"N_1 = {d.N2_fase:.0f} \\cdot \\frac{{{formatear_numero(d.E1_fase)}}}{{{formatear_numero(d.E2_fase)}}}", f"N_1 = {getattr(d, 'N1_fase', 0):.0f}", "espiras")
         add_step(doc, "Corriente Primaria de Fase ($I_{1,fase}$)", r"I_{1,fase} = \frac{S_{devanado}}{E_{1,fase}}", f"I_{{1,fase}} = \\frac{{{S_dev_VA:,.0f}}}{{{formatear_numero(d.E1_fase)}}}", f"I_{{1,fase}} = {formatear_numero(d.I1_fase_nom)}", "A")
         add_step(doc, "Corriente Secundaria de Fase ($I_{2,fase}$)", r"I_{2,fase} = \frac{S_{devanado}}{E_{2,fase}}", f"I_{{2,fase}} = \\frac{{{S_dev_VA:,.0f}}}{{{formatear_numero(d.E2_fase)}}}", f"I_{{2,fase}} = {formatear_numero(d.I2_fase)}", "A")
         add_step(doc, "Sección Conductor Primario ($s_1$)", r"s_1 = \frac{I_{1,fase}}{J}", f"s_1 = \\frac{{{formatear_numero(d.I1_fase_nom)}}}{{{formatear_numero(d.J)}}}", f"s_1 = {formatear_numero(d.s1)}", "mm^2")
