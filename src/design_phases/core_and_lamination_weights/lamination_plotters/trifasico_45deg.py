@@ -19,29 +19,32 @@ def draw(d, output_dir='temp', step_index=0):
     ax2 = fig.add_subplot(gs[2, 0])
     ax3 = fig.add_subplot(gs[3, 0])
 
-    # --- INICIO DE LA MODIFICACIÓN: LÓGICA DE CÁLCULO CUMULATIVA ---
-    b_mm = getattr(d, 'b', 0.0) * 10.0
-    c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
-    
-    anchos_cm = getattr(d, 'anchos', [])
-    espesores_cm = getattr(d, 'espesores', [])
+    # --- INICIO DE LA MODIFICACIÓN: USAR DIMENSIONES PRE-CALCULADAS POR ESCALÓN ---
+    # Usar las dimensiones actualizadas ya calculadas en nucleus_and_window/calculation.py
+    if hasattr(d, 'b_por_escalon') and hasattr(d, 'c_prima_por_escalon'):
+        # Usar dimensiones pre-calculadas por escalón
+        b_mm = (d.b_por_escalon[step_index] if step_index < len(d.b_por_escalon) else d.b) * 10.0
+        c_prima_mm = (d.c_prima_por_escalon[step_index] if step_index < len(d.c_prima_por_escalon) else getattr(d, 'c_prima', d.c)) * 10.0
+    else:
+        # Fallback: usar dimensiones base y aplicar regla acumulativa manualmente
+        b_mm = getattr(d, 'b', 0.0) * 10.0
+        c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
+        
+        anchos_cm = getattr(d, 'anchos', [])
+        espesores_cm = getattr(d, 'espesores', [])
+        
+        if step_index > 0:
+            cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
+            b_mm += cumulative_e_mm
+            c_prima_mm += cumulative_e_mm
 
+    anchos_cm = getattr(d, 'anchos', [])
     a = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else 0.0
     
-    base_menor_1, base_menor_2, largo_rect_3 = 0.0, 0.0, 0.0
-    
-    if step_index == 0:
-        a0 = a
-        base_menor_1 = b_mm
-        base_menor_2 = 2 * c_prima_mm + a0
-        largo_rect_3 = b_mm
-    else:
-        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
-        a0_mm = anchos_cm[0] * 10.0 if anchos_cm else 0.0 # Necesario para la base del yugo
-        
-        base_menor_1 = b_mm + cumulative_e_mm
-        base_menor_2 = (2 * c_prima_mm + a0_mm) + cumulative_e_mm
-        largo_rect_3 = b_mm + cumulative_e_mm
+    # Calcular las bases usando las dimensiones ya actualizadas
+    base_menor_1 = b_mm
+    base_menor_2 = 2 * c_prima_mm + (anchos_cm[0] * 10.0 if anchos_cm else 0.0)
+    largo_rect_3 = b_mm
     # --- FIN DE LA MODIFICACIÓN ---
 
     # --- 1.b. Detectar overrides provenientes de calculation.py (_detalles_para_plot)
@@ -128,9 +131,13 @@ def draw(d, output_dir='temp', step_index=0):
     p1_shape = [[0, 0], [base_mayor_1, 0], [base_menor_1 + a, altura_1], [a, altura_1]]
     ax1.add_patch(patches.Polygon(p1_shape, closed=True, fc='#FFDDC1', ec='k'))
     ax1.text(base_mayor_1/2, altura_1/2, '1', ha='center', va='center', fontsize=14)
-    ax1.annotate(f'Base Mayor: {base_mayor_1:.1f}', xy=(base_mayor_1/2, 0), xytext=(base_mayor_1/2, -offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
-    ax1.annotate(f'Base Menor: {base_menor_1:.1f}', xy=(base_mayor_1/2, altura_1), xytext=(base_mayor_1/2, altura_1 + offset), arrowprops=dict(arrowstyle='-'), ha='center', va='bottom')
-    ax1.annotate(f'Altura: {altura_1:.1f}', xy=(0, altura_1/2), xytext=(-offset*2, altura_1/2), arrowprops=dict(arrowstyle='<->'), ha='center', va='center')
+    # Cotas mejoradas con flechas para Pieza 1
+    ax1.annotate('', xy=(0, -offset), xytext=(base_mayor_1, -offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax1.text(base_mayor_1/2, -offset*1.5, f'Base Mayor: {base_mayor_1:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
+    ax1.annotate('', xy=(a, altura_1 + offset), xytext=(base_menor_1 + a, altura_1 + offset), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax1.text(base_mayor_1/2, altura_1 + offset*1.5, f'Base Menor: {base_menor_1:.1f} mm', ha='center', va='bottom', color='red', fontsize=9)
+    ax1.annotate('', xy=(-offset*2, 0), xytext=(-offset*2, altura_1), arrowprops=dict(arrowstyle='<->', ec='green'))
+    ax1.text(-offset*2.5, altura_1/2, f'Altura:\n{altura_1:.1f} mm', ha='right', va='center', color='green', fontsize=9)
     # Mostrar largo calculado (override) cuando exista, si no usar la base mayor como referencia
     l1_mm = mapping.get('1', base_mayor_1)
     ax1.set_title(f"Pieza 1 (Trapecio) — Largo mostrado: {l1_mm:.1f} mm")
@@ -147,9 +154,13 @@ def draw(d, output_dir='temp', step_index=0):
     corte_shape = [[corte_centro_x - a/2, altura_2], [corte_centro_x + a/2, altura_2], [corte_centro_x, altura_2 - a/2]]
     ax2.add_patch(patches.Polygon(corte_shape, closed=True, fc='white', ec='red'))
     ax2.text(base_mayor_2/2, altura_2/3, '2', ha='center', va='center', fontsize=14)
-    ax2.annotate(f'Base Mayor: {base_mayor_2:.1f}', xy=(base_mayor_2/2, 0), xytext=(base_mayor_2/2, -offset), arrowprops=dict(arrowstyle='-'), ha='center', va='top')
-    ax2.annotate(f'Base Menor (antes del corte): {base_menor_2:.1f}', xy=(base_mayor_2/2, altura_2), xytext=(base_mayor_2/2, altura_2 + offset), arrowprops=dict(arrowstyle='-'), ha='center', va='bottom')
-    ax2.annotate(f'Altura: {altura_2:.1f}', xy=(0, altura_2/2), xytext=(-offset*2, altura_2/2), arrowprops=dict(arrowstyle='<->'), ha='center', va='center')
+    # Cotas mejoradas con flechas para Pieza 2
+    ax2.annotate('', xy=(0, -offset), xytext=(base_mayor_2, -offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax2.text(base_mayor_2/2, -offset*1.5, f'Base Mayor: {base_mayor_2:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
+    ax2.annotate('', xy=(a, altura_2 + offset), xytext=(base_menor_2 + a, altura_2 + offset), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax2.text(base_mayor_2/2, altura_2 + offset*1.5, f'Base Menor: {base_menor_2:.1f} mm', ha='center', va='bottom', color='red', fontsize=9)
+    ax2.annotate('', xy=(-offset*2, 0), xytext=(-offset*2, altura_2), arrowprops=dict(arrowstyle='<->', ec='green'))
+    ax2.text(-offset*2.5, altura_2/2, f'Altura:\n{altura_2:.1f} mm', ha='right', va='center', color='green', fontsize=9)
     # Mostrar largo calculado (override) cuando exista, si no usar la base mayor como referencia
     l2_mm = mapping.get('2', base_mayor_2)
     ax2.set_title(f"Pieza 2 (Yugo - con corte) — Largo mostrado: {l2_mm:.1f} mm")
@@ -166,9 +177,11 @@ def draw(d, output_dir='temp', step_index=0):
     ax3.add_patch(patches.Polygon(tri_right, closed=True, fc='#C1FFD7', ec='k'))
     ax3.add_patch(patches.Polygon(tri_left, closed=True, fc='#C1FFD7', ec='k'))
     ax3.text(rect_largo_3/2, rect_ancho_3/2, '3', ha='center', va='center', fontsize=14)
-    # Anotaciones ajustadas para orientación horizontal
-    ax3.annotate(f'Ancho: {rect_ancho_3:.1f}', xy=(-tri_altura_3, rect_ancho_3/2), xytext=(-tri_altura_3 - offset, rect_ancho_3/2), arrowprops=dict(arrowstyle='-'), ha='right', va='center')
-    ax3.annotate(f'Largo Rect.: {rect_largo_3:.1f}', xy=(rect_largo_3/2, rect_ancho_3 + offset), xytext=(rect_largo_3/2, rect_ancho_3 + offset), ha='center', va='bottom')
+    # Cotas mejoradas con flechas para Pieza 3
+    ax3.annotate('', xy=(0, rect_ancho_3 + offset), xytext=(rect_largo_3, rect_ancho_3 + offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax3.text(rect_largo_3/2, rect_ancho_3 + offset*1.5, f'Largo Rect.: {rect_largo_3:.1f} mm', ha='center', va='bottom', color='blue', fontsize=9)
+    ax3.annotate('', xy=(-tri_altura_3 - offset, 0), xytext=(-tri_altura_3 - offset, rect_ancho_3), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax3.text(-tri_altura_3 - offset*1.5, rect_ancho_3/2, f'Ancho:\n{rect_ancho_3:.1f} mm', ha='right', va='center', color='red', fontsize=9)
     # Mostrar largo calculado (override) cuando exista, si no usar el largo del rectángulo como referencia
     l3_mm = mapping.get('3', rect_largo_3)
     ax3.set_title(f"Pieza 3 (Rectángulo+Triángulos) — Largo mostrado: {l3_mm:.1f} mm")

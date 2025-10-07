@@ -18,29 +18,34 @@ def draw(d, output_dir, step_index=0):
     ax1 = fig.add_subplot(gs[1, 0])
     ax2 = fig.add_subplot(gs[2, 0])
     
-    # --- 1. CÁLCULO DE DIMENSIONES (MODIFICADO: REGLA CUMULATIVA) ---
-    b_mm = getattr(d, 'b', 0.0) * 10.0  # Alto de la ventana en mm
-    c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0  # Ancho de ventana en mm
-    
-    # Listas por escalón (valores en cm)
-    anchos_cm = getattr(d, 'anchos', [])
-    espesores_cm = getattr(d, 'espesores', [])
+    # --- 1. CÁLCULO DE DIMENSIONES (OPTIMIZADO: USAR LISTAS PRE-CALCULADAS) ---
+    # Usar las dimensiones actualizadas ya calculadas en nucleus_and_window/calculation.py
+    if hasattr(d, 'b_por_escalon') and hasattr(d, 'c_prima_por_escalon'):
+        # Usar dimensiones pre-calculadas por escalón
+        b_mm = (d.b_por_escalon[step_index] if step_index < len(d.b_por_escalon) else d.b) * 10.0
+        c_prima_mm = (d.c_prima_por_escalon[step_index] if step_index < len(d.c_prima_por_escalon) else getattr(d, 'c_prima', d.c)) * 10.0
+    else:
+        # Fallback: usar dimensiones base y aplicar regla acumulativa manualmente
+        b_mm = getattr(d, 'b', 0.0) * 10.0
+        c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
+        
+        # Listas por escalón (valores en cm)
+        anchos_cm = getattr(d, 'anchos', [])
+        espesores_cm = getattr(d, 'espesores', [])
+        
+        if step_index > 0:
+            # Escalones > 1: sumar 2 * e (en mm) para todos los escalones interiores desde el 2do hasta el actual
+            cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
+            b_mm += cumulative_e_mm
+            c_prima_mm += cumulative_e_mm
     
     # Ancho de lámina del escalón actual (en mm)
+    anchos_cm = getattr(d, 'anchos', [])
     a_mm = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else 0.0
 
-    # Inicializar bases menores que usarán la regla acumulativa
-    base_menor_1, base_menor_2 = 0.0, 0.0
-
-    if step_index == 0:
-        # Escalón 1: usar dimensiones base
-        base_menor_1 = b_mm
-        base_menor_2 = c_prima_mm
-    else:
-        # Escalones > 1: sumar 2 * e (en mm) para todos los escalones interiores desde el 2do hasta el actual
-        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
-        base_menor_1 = b_mm + cumulative_e_mm
-        base_menor_2 = c_prima_mm + cumulative_e_mm
+    # Las bases menores ya están actualizadas en b_mm y c_prima_mm
+    base_menor_1 = b_mm
+    base_menor_2 = c_prima_mm
 
     # Detectar overrides provenientes de calculation.py (_detalles_para_plot)
     override = getattr(d, '_detalles_para_plot', None)
@@ -103,13 +108,13 @@ def draw(d, output_dir, step_index=0):
     ax1.set_title(f"Pieza 1 (Columna)")
     ax1.text((base_mayor_1 + base_menor_1)/2 / 2 + altura_1/2, altura_1/2, '1', ha='center', va='center', fontsize=14)
     
-    # Dimensiones
+    # Cotas mejoradas con flechas para Pieza 1
     ax1.annotate('', xy=(altura_1, -offset), xytext=(altura_1 + base_menor_1, -offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
-    ax1.text(altura_1 + base_menor_1/2, -offset, f'Base Menor: {base_menor_1:.1f}', ha='center', va='top', color='blue', fontsize=9)
+    ax1.text(altura_1 + base_menor_1/2, -offset*1.5, f'Base Menor: {base_menor_1:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
     ax1.annotate('', xy=(0, altura_1 + offset), xytext=(base_mayor_1, altura_1 + offset), arrowprops=dict(arrowstyle='<->', ec='red'))
-    ax1.text(base_mayor_1/2, altura_1 + offset, f'Base Mayor: {base_mayor_1:.1f}', ha='center', va='bottom', color='red', fontsize=9)
+    ax1.text(base_mayor_1/2, altura_1 + offset*1.5, f'Base Mayor: {base_mayor_1:.1f} mm', ha='center', va='bottom', color='red', fontsize=9)
     ax1.annotate('', xy=(-offset, 0), xytext=(-offset, altura_1), arrowprops=dict(arrowstyle='<->', ec='green'))
-    ax1.text(-offset, altura_1/2, f'Altura:\n{altura_1:.1f}', ha='right', va='center', color='green', fontsize=9)
+    ax1.text(-offset*1.5, altura_1/2, f'Altura:\n{altura_1:.1f} mm', ha='right', va='center', color='green', fontsize=9)
  
     # --- Pieza 2 (Yugo): Trapecio Isósceles ---
     altura_2 = a_mm
@@ -122,13 +127,13 @@ def draw(d, output_dir, step_index=0):
     ax2.set_title("Pieza 2 (Yugo)")
     ax2.text((base_mayor_2 + base_menor_2)/2 / 2 + altura_2/2, altura_2/2, '2', ha='center', va='center', fontsize=14)
 
-    # Dimensiones
+    # Cotas mejoradas con flechas para Pieza 2
     ax2.annotate('', xy=(altura_2, -offset), xytext=(altura_2 + base_menor_2, -offset), arrowprops=dict(arrowstyle='<->', ec='blue'))
-    ax2.text(altura_2 + base_menor_2/2, -offset, f'Base Menor: {base_menor_2:.1f}', ha='center', va='top', color='blue', fontsize=9)
+    ax2.text(altura_2 + base_menor_2/2, -offset*1.5, f'Base Menor: {base_menor_2:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
     ax2.annotate('', xy=(0, altura_2 + offset), xytext=(base_mayor_2, altura_2 + offset), arrowprops=dict(arrowstyle='<->', ec='red'))
-    ax2.text(base_mayor_2/2, altura_2 + offset, f'Base Mayor: {base_mayor_2:.1f}', ha='center', va='bottom', color='red', fontsize=9)
+    ax2.text(base_mayor_2/2, altura_2 + offset*1.5, f'Base Mayor: {base_mayor_2:.1f} mm', ha='center', va='bottom', color='red', fontsize=9)
     ax2.annotate('', xy=(-offset, 0), xytext=(-offset, altura_2), arrowprops=dict(arrowstyle='<->', ec='green'))
-    ax2.text(-offset, altura_2/2, f'Altura:\n{altura_2:.1f}', ha='right', va='center', color='green', fontsize=9)
+    ax2.text(-offset*1.5, altura_2/2, f'Altura:\n{altura_2:.1f} mm', ha='right', va='center', color='green', fontsize=9)
 
     # --- CORRECCIÓN DE ESCALA ---
     ax1.autoscale_view()

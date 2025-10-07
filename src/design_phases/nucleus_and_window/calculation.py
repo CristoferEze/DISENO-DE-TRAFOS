@@ -35,7 +35,9 @@ def run(d):
     if d.usar_valores_opcionales and d.J_opcional:
         d.J = d.J_opcional
     else:
-        d.J = utils.get_promedio(db.densidad_corriente_db[d.refrig]['Cobre'])
+        # Usar el material del conductor configurado (Cobre o Aluminio)
+        material = getattr(d, 'material_conductor', 'Cobre')
+        d.J = utils.get_promedio(db.densidad_corriente_db[d.refrig][material])
     
     # --- INICIO DE LA CORRECCIÓN ---
     # En lugar de acceder directamente al diccionario, usamos la función auxiliar
@@ -196,6 +198,36 @@ def run(d):
     
     # Longitud del yugo (L) para trifásico, Fórmula (1.58)
     d.L_trifasico = 2 * d.c + 2 * d.D + a1
+    
+    # --- NUEVO: Cálculo de dimensiones actualizadas por escalón ---
+    # Aplicar la regla acumulativa para b, c_prima y g según la tabla especificada:
+    # Escalón 1: Ancho = b+a,    Altura = c'+2*a,        Grosor = a
+    # Escalón 2: Ancho = b+2*e1, Altura = c'+2*e1,       Grosor = a1
+    # Escalón 3: Ancho = b+2*e1+2*e2, Altura = c'+2*e1+2*e2, Grosor = a2
+    
+    d.b_por_escalon = []
+    d.c_prima_por_escalon = []
+    d.g_por_escalon = []
+    
+    if d.anchos and d.espesores:
+        for i in range(len(d.anchos)):
+            # Calcular b y c_prima actualizados para este escalón
+            b_actual = d.b
+            c_prima_actual = d.c_prima
+            
+            if i > 0:  # Para escalones del 2 en adelante
+                # Sumar 2*e para todos los escalones desde el 2do (índice 1) hasta el actual
+                cumulative_e = sum(d.espesores[1:i + 1]) * 2.0
+                b_actual += cumulative_e
+                c_prima_actual += cumulative_e
+            
+            # Calcular g actualizado para este escalón
+            ancho_escalon = d.anchos[i]
+            g_actual = d.An / ancho_escalon if ancho_escalon > 0 else 0
+            
+            d.b_por_escalon.append(b_actual)
+            d.c_prima_por_escalon.append(c_prima_actual)
+            d.g_por_escalon.append(g_actual)
     
     # Generación de imágenes MOVIDA a la capa de UI (app_view.py).
     # El objeto 'diseno' no debe encargarse de crear gráficos en la fase de cálculo.

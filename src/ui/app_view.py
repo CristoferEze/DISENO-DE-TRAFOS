@@ -49,6 +49,8 @@ class Application:
              sg.Input('', key='-TAPS-', tooltip='Ejemplo: 2.5, 5.0, 7.5 (separados por coma). Dejar vacío si no hay TAPs.')],
             [sg.Text('Tipo de Acero:', size=(18,1)), sg.DropDown(tipos_de_acero_display, default_value='35M6', key='-ACERO-')],
             [sg.Text('Tipo de Corte:', size=(18,1)), sg.DropDown(['Recto', 'Diagonal'], default_value='Recto', key='-CUT_TYPE-')],
+            [sg.Text('Refrigeración:', size=(18,1)), sg.DropDown(['AN', 'AF', 'ONAN', 'ONAF', 'ODAF'], default_value='ONAN', key='-REFRIG-')],
+            [sg.Text('Material Conductor:', size=(18,1)), sg.DropDown(['Cobre', 'Aluminio'], default_value='Cobre', key='-MATERIAL-')],
             [sg.Checkbox('Redondear a 2 decimales', default=True, key='-REDONDEAR-')]
         ])
 
@@ -63,24 +65,24 @@ class Application:
         
         # Tab único de valores opcionales consolidado
         params_opcionales = sg.Frame('Valores Opcionales', [
-            [sg.Checkbox('Usar valores opcionales', default=False, key='-USAR_OPCIONALES-', enable_events=True)],
+            [sg.Checkbox('Usar valores opcionales', default=True, key='-USAR_OPCIONALES-', enable_events=True)],
             [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Diseño Opcionales:', font=('Helvetica', 10, 'bold'))],
-            [sg.Text('Inducción B (kGauss):', size=(20,1)), sg.Input(key='-B_OPCIONAL-', disabled=True)],
-            [sg.Text('Constante C:', size=(20,1)), sg.Input(key='-C_OPCIONAL-', disabled=True)],
-            [sg.Text('Coeficiente Kc:', size=(20,1)), sg.Input(key='-KC_OPCIONAL-', disabled=True)],
-            [sg.Text('Densidad J (A/mm²):', size=(20,1)), sg.Input(key='-J_OPCIONAL-', disabled=True)],
+            [sg.Text('Inducción B (kGauss):', size=(20,1)), sg.Input(key='-B_OPCIONAL-', disabled=False)],
+            [sg.Text('Constante C:', size=(20,1)), sg.Input(key='-C_OPCIONAL-', disabled=False)],
+            [sg.Text('Coeficiente Kc:', size=(20,1)), sg.Input(key='-KC_OPCIONAL-', disabled=False)],
+            [sg.Text('Densidad J (A/mm²):', size=(20,1)), sg.Input(key='-J_OPCIONAL-', disabled=False)],
             [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Pérdidas Manuales:', font=('Helvetica', 10, 'bold'))],
-            [sg.Text('Pérdidas Cobre Pc (W/kg):', size=(20,1)), sg.Input(key='-PC_MANUAL-', disabled=True, tooltip='Valor manual para pérdidas específicas en el cobre')],
-            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_MANUAL-', disabled=True, tooltip='Valor manual para pérdidas específicas en el hierro')],
+            [sg.Text('Pérdidas Cobre Pc (W/kg):', size=(20,1)), sg.Input('29.89', key='-PC_MANUAL-', disabled=False, tooltip='Valor manual para pérdidas específicas en el cobre')],
+            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input('1.625', key='-PF_MANUAL-', disabled=False, tooltip='Valor manual para pérdidas específicas en el hierro')],
             [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Tabla Opcionales:', font=('Helvetica', 10, 'bold'))],
-            [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=True)],
-            [sg.Text('Coeficiente Kf:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=True)],
-            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=True, tooltip='Valor de tabla para pérdidas específicas en el hierro')],
-            [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=True)],
-            [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=True)]
+            [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=False)],
+            [sg.Text('Coeficiente Kf:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=False)],
+            [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=False, tooltip='Valor de tabla para pérdidas específicas en el hierro')],
+            [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=False)],
+            [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=False)]
         ])
         return params_diseno, params_opcionales
 
@@ -210,13 +212,15 @@ class Application:
                 'conn': values['-CONN-'],
                 'taps': [float(t.strip()) for t in values['-TAPS-'].split(',')] if values['-TAPS-'].strip() else [],
                 'rel_rw': float(values['-RW-']),
+                'refrig': values.get('-REFRIG-', 'ONAN'),  # Añadir tipo de refrigeración
+                'material_conductor': values.get('-MATERIAL-', 'Cobre'),  # Añadir material conductor
                 'b_man': None,  # Campos manuales eliminados, ahora solo se usan opcionales
                 'c_man': None,
                 'kc_man': None,
                 'ciclo_carga': ciclo_carga,
                 'cut_type': values.get('-CUT_TYPE-', 'Recto'),
                 'redondear_2_decimales': values.get('-REDONDEAR-', False),
-                'usar_valores_opcionales': values.get('-USAR_OPCIONALES-', False),
+                'usar_valores_opcionales': values.get('-USAR_OPCIONALES-', True),
                 'b_opcional': float(values['-B_OPCIONAL-']) if values['-B_OPCIONAL-'] else None,
                 'c_opcional': float(values['-C_OPCIONAL-']) if values['-C_OPCIONAL-'] else None,
                 'kc_opcional': float(values['-KC_OPCIONAL-']) if values['-KC_OPCIONAL-'] else None,

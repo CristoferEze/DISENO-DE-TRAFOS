@@ -23,7 +23,8 @@ class DisenoTransformador:
         self.conn = kwargs.get('conn', 'Dyn5')  # Cambiar conexión por defecto a Dyn5
         self.taps_pct = kwargs.get('taps', [])
         self.rel_rw = float(kwargs.get('rel_rw', 3.0))
-        self.refrig = 'ONAN'
+        self.refrig = kwargs.get('refrig', 'ONAN')  # Permitir configuración desde kwargs
+        self.material_conductor = kwargs.get('material_conductor', 'Cobre')  # Añadir material conductor
         self.fases = 3 if self.tipo == 'trifasico' else 1
         self.B_man = kwargs.get('b_man')
         self.C_man = kwargs.get('c_man')

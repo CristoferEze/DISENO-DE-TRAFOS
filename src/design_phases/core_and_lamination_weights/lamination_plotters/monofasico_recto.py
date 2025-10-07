@@ -18,10 +18,16 @@ def draw(d, output_dir, step_index=0):
     ax1 = fig.add_subplot(gs[1, 0])
     ax2 = fig.add_subplot(gs[2, 0])
 
-    # --- INICIO DE LA CORRECCIÓN: LÓGICA DE ENSAMBLE SUPERPUESTO ---
-    b_mm = getattr(d, 'b', 0.0) * 10.0
-    # Usamos c_prima para el ancho de la ventana
-    c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
+    # --- INICIO DE LA CORRECCIÓN: USAR DIMENSIONES PRE-CALCULADAS POR ESCALÓN ---
+    # Usar las dimensiones actualizadas ya calculadas en nucleus_and_window/calculation.py
+    if hasattr(d, 'b_por_escalon') and hasattr(d, 'c_prima_por_escalon'):
+        # Usar dimensiones pre-calculadas por escalón
+        b_mm = (d.b_por_escalon[step_index] if step_index < len(d.b_por_escalon) else d.b) * 10.0
+        c_prima_mm = (d.c_prima_por_escalon[step_index] if step_index < len(d.c_prima_por_escalon) else getattr(d, 'c_prima', d.c)) * 10.0
+    else:
+        # Fallback: usar dimensiones base
+        b_mm = getattr(d, 'b', 0.0) * 10.0
+        c_prima_mm = getattr(d, 'c_prima', getattr(d, 'c', 0.0)) * 10.0
 
     anchos_cm = getattr(d, 'anchos', [])
     grosor_mm = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else 0.0
@@ -88,14 +94,28 @@ def draw(d, output_dir, step_index=0):
     ax1.set_title("Pieza 1 (Vertical)")
     ax1.add_patch(patches.Rectangle((0, 0), piece_dims['1']['height'], piece_dims['1']['width'], fc='lightcoral', ec='k'))
     ax1.text(piece_dims['1']['height'] / 2, piece_dims['1']['width'] / 2, '1', ha='center', va='center', fontsize=12)
-    ax1.text(piece_dims['1']['height'] / 2, -piece_dims['1']['width'] * 0.5, f"Largo (b + grosor): {piece_dims['1']['height']:.1f} mm", ha='center', va='top', fontsize=10)
-    ax1.text(-5, piece_dims['1']['width'] / 2, f"Ancho\n(grosor):\n{piece_dims['1']['width']:.1f} mm", ha='right', va='center', fontsize=9)
+    
+    # Cotas con flechas para Pieza 1
+    offset_1 = piece_dims['1']['width'] * 0.3
+    # Largo (horizontal)
+    ax1.annotate('', xy=(0, -offset_1), xytext=(piece_dims['1']['height'], -offset_1), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax1.text(piece_dims['1']['height'] / 2, -offset_1*1.5, f"Largo (b + grosor): {piece_dims['1']['height']:.1f} mm", ha='center', va='top', color='blue', fontsize=9)
+    # Ancho (vertical)
+    ax1.annotate('', xy=(-offset_1, 0), xytext=(-offset_1, piece_dims['1']['width']), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax1.text(-offset_1*1.5, piece_dims['1']['width'] / 2, f"Ancho\n(grosor):\n{piece_dims['1']['width']:.1f} mm", ha='right', va='center', color='red', fontsize=9)
 
     ax2.set_title("Pieza 2 (Horizontal)")
     ax2.add_patch(patches.Rectangle((0, 0), piece_dims['2']['width'], piece_dims['2']['height'], fc='lightblue', ec='k'))
     ax2.text(piece_dims['2']['width'] / 2, piece_dims['2']['height'] / 2, '2', ha='center', va='center', fontsize=12)
-    ax2.text(piece_dims['2']['width'] / 2, -piece_dims['2']['height'] * 0.5, f"Largo (c' + grosor): {piece_dims['2']['width']:.1f} mm", ha='center', va='top', fontsize=10)
-    ax2.text(-5, piece_dims['2']['height'] / 2, f"Ancho\n(grosor):\n{piece_dims['2']['height']:.1f} mm", ha='right', va='center', fontsize=9)
+    
+    # Cotas con flechas para Pieza 2
+    offset_2 = piece_dims['2']['height'] * 0.3
+    # Largo (horizontal)
+    ax2.annotate('', xy=(0, -offset_2), xytext=(piece_dims['2']['width'], -offset_2), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax2.text(piece_dims['2']['width'] / 2, -offset_2*1.5, f"Largo (c' + grosor): {piece_dims['2']['width']:.1f} mm", ha='center', va='top', color='blue', fontsize=9)
+    # Ancho (vertical)
+    ax2.annotate('', xy=(-offset_2, 0), xytext=(-offset_2, piece_dims['2']['height']), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax2.text(-offset_2*1.5, piece_dims['2']['height'] / 2, f"Ancho\n(grosor):\n{piece_dims['2']['height']:.1f} mm", ha='right', va='center', color='red', fontsize=9)
 
     for ax in [ax_main, ax1, ax2]:
         ax.axis('equal')

@@ -24,16 +24,29 @@ def draw(d, output_dir, step_index=0):
     ax2 = fig.add_subplot(gs[2, :])     # Pieza 2
     ax3 = fig.add_subplot(gs[3, :])     # Pieza 3
     
-    # --- 1. CÁLCULO CENTRALIZADO DE DIMENSIONES (MODIFICADO: REGLA CUMULATIVA) ---
-    # Dimensiones base en mm
-    b_mm = getattr(d, 'b', 0.0) * 10.0  # Alto de la ventana
-    c_mm = getattr(d, 'c', 0.0) * 10.0  # Ancho de la ventana
-
-    # Listas por escalón (valores en cm)
-    anchos_cm = getattr(d, 'anchos', [])
-    espesores_cm = getattr(d, 'espesores', [])
+    # --- 1. CÁLCULO CENTRALIZADO DE DIMENSIONES (OPTIMIZADO: USAR LISTAS PRE-CALCULADAS) ---
+    # Usar las dimensiones actualizadas ya calculadas en nucleus_and_window/calculation.py
+    if hasattr(d, 'b_por_escalon') and hasattr(d, 'c_prima_por_escalon'):
+        # Usar dimensiones pre-calculadas por escalón
+        b_mm = (d.b_por_escalon[step_index] if step_index < len(d.b_por_escalon) else d.b) * 10.0
+        c_mm = (d.c_prima_por_escalon[step_index] if step_index < len(d.c_prima_por_escalon) else getattr(d, 'c_prima', d.c)) * 10.0
+    else:
+        # Fallback: usar dimensiones base y calcular manualmente
+        b_mm = getattr(d, 'b', 0.0) * 10.0
+        c_mm = getattr(d, 'c', 0.0) * 10.0
+        
+        # Listas por escalón (valores en cm)
+        anchos_cm = getattr(d, 'anchos', [])
+        espesores_cm = getattr(d, 'espesores', [])
+        
+        # Aplicar regla acumulativa manualmente si es necesario
+        if step_index > 0:
+            cumulative_e_cm = sum(espesores_cm[1:step_index + 1]) * 2.0
+            b_mm += cumulative_e_cm * 10.0
+            c_mm += cumulative_e_cm * 10.0
 
     # Ancho/grosor de la laminación para el escalón actual (mm)
+    anchos_cm = getattr(d, 'anchos', [])
     lamination_width_mm = anchos_cm[step_index] * 10.0 if len(anchos_cm) > step_index else (getattr(d, 'g', 0.0) * 10.0)
 
     # Detectar overrides provenientes de calculation.py (_detalles_para_plot)
@@ -46,20 +59,10 @@ def draw(d, output_dir, step_index=0):
             if m:
                 mapping[m.group(1)] = det.get('largo_cm', None)
 
-    # Calcular largos según regla acumulativa
-    largo_1, largo_2, largo_3 = 0.0, 0.0, 0.0
-    if step_index == 0:
-        # Escalón 1: usa su propio ancho 'a0'
-        a0_mm = lamination_width_mm
-        largo_1 = b_mm + a0_mm
-        largo_2 = c_mm + a0_mm
-        largo_3 = (2 * c_mm) + a0_mm
-    else:
-        # Escalones > 1: sumar 2 * e (en mm) para todos los escalones interiores desde el 2° hasta el actual
-        cumulative_e_mm = sum(espesores_cm[1:step_index + 1]) * 10.0 * 2.0
-        largo_1 = b_mm + cumulative_e_mm
-        largo_2 = c_mm + cumulative_e_mm
-        largo_3 = (2 * c_mm) + cumulative_e_mm
+    # Calcular largos usando las dimensiones ya actualizadas
+    largo_1 = b_mm + lamination_width_mm
+    largo_2 = c_mm + lamination_width_mm
+    largo_3 = (2 * c_mm) + lamination_width_mm
 
     # Construir dictionary de dimensiones usando los largos calculados o los overrides
     piece_dims = {
@@ -156,22 +159,43 @@ def draw(d, output_dir, step_index=0):
     ax1.set_title("Pieza 1 (Columna)")
     ax1.add_patch(patches.Rectangle((0, 0), piece_dims['1']['height'], piece_dims['1']['width'], fc='w', ec='k'))
     ax1.text(piece_dims['1']['height']/2, piece_dims['1']['width']/2, '1', ha='center', va='center', fontsize=12)
-    ax1.text(piece_dims['1']['height']/2, -piece_dims['1']['width']*0.4, f"{piece_dims['1']['height']:.1f} mm", ha='center', va='top')
-    ax1.text(-5, piece_dims['1']['width']/2, f"{piece_dims['1']['width']:.1f} mm", ha='right', va='center')
+    
+    # Cotas con flechas para Pieza 1
+    offset_1 = piece_dims['1']['width'] * 0.3
+    # Largo (horizontal)
+    ax1.annotate('', xy=(0, -offset_1), xytext=(piece_dims['1']['height'], -offset_1), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax1.text(piece_dims['1']['height']/2, -offset_1*1.5, f'Largo: {piece_dims["1"]["height"]:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
+    # Ancho (vertical)
+    ax1.annotate('', xy=(-offset_1, 0), xytext=(-offset_1, piece_dims['1']['width']), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax1.text(-offset_1*1.5, piece_dims['1']['width']/2, f'Ancho:\n{piece_dims["1"]["width"]:.1f} mm', ha='right', va='center', color='red', fontsize=9)
 
     # Pieza 2
     ax2.set_title("Pieza 2 (Yugo Corto)")
     ax2.add_patch(patches.Rectangle((0, 0), piece_dims['2']['width'], piece_dims['2']['height'], fc='w', ec='k'))
     ax2.text(piece_dims['2']['width']/2, piece_dims['2']['height']/2, '2', ha='center', va='center', fontsize=12)
-    ax2.text(piece_dims['2']['width']/2, -piece_dims['2']['height']*0.4, f"{piece_dims['2']['width']:.1f} mm", ha='center', va='top')
-    ax2.text(-5, piece_dims['2']['height']/2, f"{piece_dims['2']['height']:.1f} mm", ha='right', va='center')
+    
+    # Cotas con flechas para Pieza 2
+    offset_2 = piece_dims['2']['height'] * 0.3
+    # Largo (horizontal)
+    ax2.annotate('', xy=(0, -offset_2), xytext=(piece_dims['2']['width'], -offset_2), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax2.text(piece_dims['2']['width']/2, -offset_2*1.5, f'Largo: {piece_dims["2"]["width"]:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
+    # Ancho (vertical)
+    ax2.annotate('', xy=(-offset_2, 0), xytext=(-offset_2, piece_dims['2']['height']), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax2.text(-offset_2*1.5, piece_dims['2']['height']/2, f'Ancho:\n{piece_dims["2"]["height"]:.1f} mm', ha='right', va='center', color='red', fontsize=9)
 
     # Pieza 3
     ax3.set_title("Pieza 3 (Yugo Largo)")
     ax3.add_patch(patches.Rectangle((0, 0), piece_dims['3']['width'], piece_dims['3']['height'], fc='w', ec='k'))
     ax3.text(piece_dims['3']['width']/2, piece_dims['3']['height']/2, '3', ha='center', va='center', fontsize=12)
-    ax3.text(piece_dims['3']['width']/2, -piece_dims['3']['height']*0.4, f"{piece_dims['3']['width']:.1f} mm", ha='center', va='top')
-    ax3.text(-5, piece_dims['3']['height']/2, f"{piece_dims['3']['height']:.1f} mm", ha='right', va='center')
+    
+    # Cotas con flechas para Pieza 3
+    offset_3 = piece_dims['3']['height'] * 0.3
+    # Largo (horizontal)
+    ax3.annotate('', xy=(0, -offset_3), xytext=(piece_dims['3']['width'], -offset_3), arrowprops=dict(arrowstyle='<->', ec='blue'))
+    ax3.text(piece_dims['3']['width']/2, -offset_3*1.5, f'Largo: {piece_dims["3"]["width"]:.1f} mm', ha='center', va='top', color='blue', fontsize=9)
+    # Ancho (vertical)
+    ax3.annotate('', xy=(-offset_3, 0), xytext=(-offset_3, piece_dims['3']['height']), arrowprops=dict(arrowstyle='<->', ec='red'))
+    ax3.text(-offset_3*1.5, piece_dims['3']['height']/2, f'Ancho:\n{piece_dims["3"]["height"]:.1f} mm', ha='right', va='center', color='red', fontsize=9)
 
     for ax in [ax_main, ax1, ax2, ax3]:
         ax.axis('equal')

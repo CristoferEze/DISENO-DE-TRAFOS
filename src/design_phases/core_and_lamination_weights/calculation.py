@@ -36,40 +36,52 @@ def run(d, work_dir=None):
     if getattr(d, 'anchos', None) and getattr(d, 'espesores', None):
 
         for i, espesor_escalon in enumerate(d.espesores):
+            # --- INICIO DE LA MODIFICACIÓN: USAR DIMENSIONES PRE-CALCULADAS POR ESCALÓN ---
+            # Usar las dimensiones actualizadas ya calculadas en nucleus_and_window/calculation.py
+            if hasattr(d, 'b_por_escalon') and hasattr(d, 'c_prima_por_escalon'):
+                b_actual_cm = d.b_por_escalon[i] if i < len(d.b_por_escalon) else d.b
+                c_prima_actual_cm = d.c_prima_por_escalon[i] if i < len(d.c_prima_por_escalon) else getattr(d, 'c_prima', d.c)
+            else:
+                # Fallback: calcular manualmente si las listas no están disponibles
+                b_actual_cm = d.b
+                c_prima_actual_cm = getattr(d, 'c_prima', d.c)
+                if i > 0:  # i es el step_index
+                    # Sumar 2*e para todos los escalones desde el 2do (índice 1) hasta el actual
+                    cumulative_e_cm = sum(d.espesores[1:i + 1]) * 2.0
+                    b_actual_cm += cumulative_e_cm
+                    c_prima_actual_cm += cumulative_e_cm
+            # --- FIN DE LA MODIFICACIÓN ---
+    
             # Calcular el ancho del paquete de laminaciones para este escalón
             ancho_paquete_cm = (espesor_escalon * 2.0) if espesor_escalon else espesor_lamina_cm
             
             # Número de láminas considerando el espesor de cada lámina
             # Fórmula: N_láminas = ancho_paquete / espesor_lámina
             num_laminas = int(math.ceil(ancho_paquete_cm / espesor_lamina_cm)) if espesor_lamina_cm > 0 else 0
-
+    
             ancho_escalon_cm = d.anchos[i]
-
+    
             piezas_defs = {}
             cut_type = getattr(d, 'cut_type', 'Recto')
             
             if getattr(d, 'fases', 3) == 3:
                 if cut_type == 'Recto':
-                    # Fórmulas corregidas para corte recto según especificación del usuario
-                    # a = ancho_escalon_cm, b = d.b, c' = d.c_prima
-                    c_prima = getattr(d, 'c_prima', d.c)
+                    # Fórmulas corregidas para corte recto usando b_actual_cm y c_prima_actual_cm
                     piezas_defs = {
-                        '1': {'l': ancho_escalon_cm + d.b, 'w': ancho_escalon_cm, 'n_por_capa': 3, 'formula': 'a + b'},
-                        '2': {'l': ancho_escalon_cm + c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + c'"},
-                        '3': {'l': ancho_escalon_cm + 2 * c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 1, 'formula': "a + 2*c'"}
+                        '1': {'l': ancho_escalon_cm + b_actual_cm, 'w': ancho_escalon_cm, 'n_por_capa': 3, 'formula': 'a + b'},
+                        '2': {'l': ancho_escalon_cm + c_prima_actual_cm, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + c'"},
+                        '3': {'l': ancho_escalon_cm + 2 * c_prima_actual_cm, 'w': ancho_escalon_cm, 'n_por_capa': 1, 'formula': "a + 2*c'"}
                     }
-                else:  # Diagonal - geometrías trapezoidales
-                    c_prima = getattr(d, 'c_prima', d.c)
-                    # Figura 1: trapecio con base menor = b, base mayor = 2*a+b, altura = a
-                    # Área = (base_menor + base_mayor) * altura / 2
-                    area_fig1 = (d.b + (2 * ancho_escalon_cm + d.b)) * ancho_escalon_cm / 2.0
+                else:  # Diagonal - geometrías trapezoidales (usar b_actual_cm y c_prima_actual_cm)
+                    # Figura 1: trapecio con base menor = b_actual_cm, base mayor = 2*a+b_actual_cm, altura = a
+                    area_fig1 = (b_actual_cm + (2 * ancho_escalon_cm + b_actual_cm)) * ancho_escalon_cm / 2.0
                     # Figura 2: trapecio con agujero. Base menor = 2*c'+a, base mayor = 2*c'+3*a, altura = a
                     # Menos triángulo central de altura = a/2, base = a
-                    area_trapecio_2 = (2*c_prima + ancho_escalon_cm + 2*c_prima + 3*ancho_escalon_cm) * ancho_escalon_cm / 2.0
+                    area_trapecio_2 = (2*c_prima_actual_cm + ancho_escalon_cm + 2*c_prima_actual_cm + 3*ancho_escalon_cm) * ancho_escalon_cm / 2.0
                     area_triangulo_central = ancho_escalon_cm * (ancho_escalon_cm/2.0) / 2.0
                     area_fig2 = area_trapecio_2 - area_triangulo_central
-                    # Figura 3: rectángulo + 2 triángulos. Rectángulo = a*b, triángulos = 2*(a*a/2)/2 = a²/2
-                    area_fig3 = ancho_escalon_cm * d.b + (ancho_escalon_cm * ancho_escalon_cm) / 2.0
+                    # Figura 3: rectángulo + 2 triángulos. Rectángulo = a*b_actual_cm, triángulos = a²/2
+                    area_fig3 = ancho_escalon_cm * b_actual_cm + (ancho_escalon_cm * ancho_escalon_cm) / 2.0
                     
                     piezas_defs = {
                         '1': {'area': area_fig1, 'w': ancho_escalon_cm, 'n_por_capa': 3, 'formula': 'Trapecio: (b + 2a + b) * a / 2'},
@@ -78,17 +90,16 @@ def run(d, work_dir=None):
                     }
             elif getattr(d, 'fases', 3) == 1:
                 if cut_type == 'Recto':
-                    c_prima = getattr(d, 'c_prima', d.c)
+                    # Monofásico recto: usar b_actual_cm y c_prima_actual_cm
                     piezas_defs = {
-                        '1': {'l': ancho_escalon_cm + d.b, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'a + b'},
-                        '2': {'l': ancho_escalon_cm + 2 * c_prima, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + 2*c'"}
+                        '1': {'l': ancho_escalon_cm + b_actual_cm, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'a + b'},
+                        '2': {'l': ancho_escalon_cm + c_prima_actual_cm, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': "a + c'"}
                     }
-                else:  # Diagonal - geometrías trapezoidales para monofásico
-                    c_prima = getattr(d, 'c_prima', d.c)
-                    # Figura 1: trapecio con base menor = b, base mayor = 2*a+b, altura = a
-                    area_fig1_mono = (d.b + (2 * ancho_escalon_cm + d.b)) * ancho_escalon_cm / 2.0
-                    # Figura 2: trapecio con base menor = c', base mayor = 2*a+c', altura = a
-                    area_fig2_mono = (c_prima + (2 * ancho_escalon_cm + c_prima)) * ancho_escalon_cm / 2.0
+                else:  # Diagonal - geometrías trapezoidales para monofásico (usar valores actualizados)
+                    # Figura 1: trapecio con base menor = b_actual_cm, base mayor = 2*a+b_actual_cm, altura = a
+                    area_fig1_mono = (b_actual_cm + (2 * ancho_escalon_cm + b_actual_cm)) * ancho_escalon_cm / 2.0
+                    # Figura 2: trapecio con base menor = c_prima_actual_cm, base mayor = 2*a+c_prima_actual_cm, altura = a
+                    area_fig2_mono = (c_prima_actual_cm + (2 * ancho_escalon_cm + c_prima_actual_cm)) * ancho_escalon_cm / 2.0
                     
                     piezas_defs = {
                         '1': {'area': area_fig1_mono, 'w': ancho_escalon_cm, 'n_por_capa': 2, 'formula': 'Trapecio: (b + 2a + b) * a / 2'},
