@@ -60,7 +60,7 @@ def run(d):
     else:
         E1_kv = d.E1_fase / 1000.0
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
-        d.Kc_original = (kc_n / (30 + E1_kv)) * 1.15
+    d.Kc_original = (kc_n / (30 + E1_kv))
     d.Kc = round(d.Kc_original, 2) if getattr(d, 'redondear_2_decimales', False) else round(d.Kc_original, 4)
 
     # --- Nucleo ---
@@ -99,8 +99,4 @@ def run(d):
     # << CAMBIO: Se calculan y guardan M, c, c_prima, g y L >>
     d.M = (d.Aw / d.b) + d.D if d.b > 0 else 0
     d.c = d.M - d.D
-    a1 = d.anchos[0] if d.anchos else 0
-    d.c_prima = d.M - a1
-    d.g = d.An / a1 if a1 > 0 else 0
-    d.L_monofasico = d.c + d.D + a1
-    d.L_trifasico = 2 * d.c + 2 * d.D + a1
+    d.c_prima = d.M - d.anchos[0] if d.anchos else d.M

@@ -38,6 +38,8 @@ __pycache__/
 # ¡NUNCA subas tokens o contraseñas al repositorio!
 # Para tu script publish.bat
 .env
+.venv
 
 1ER_EXAM.md
 transformador.png
+NUEVO LIBRO.pdf

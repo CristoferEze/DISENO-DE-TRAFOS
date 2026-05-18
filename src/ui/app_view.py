@@ -17,8 +17,8 @@ from core.database import acero_electrico_db, conexiones_normalizadas
 from ui.report_builder import generate_full_report_document
 
 # Plotters del módulo nucleus_and_window (se co-localizaron ahí)
-from design_phases.nucleus_and_window import core_plotter
-from design_phases.core_and_lamination_weights.lamination_plotters import generate_plot 
+from design_phases.step02_nucleus_and_window import core_plotter
+from design_phases.step04_core_and_lamination_weights.lamination_plotters import generate_plot 
 
 class Application:
     def __init__(self):
@@ -40,7 +40,7 @@ class Application:
             [sg.Text('Tipo:', size=(18,1)),
              sg.DropDown(['trifasico', 'monofasico'], default_value='trifasico', key='-TIPO-', enable_events=True)],
             [sg.Text('Potencia Nominal (kVA):', size=(18,1)), sg.Input('25', key='-S_KVA-')],
-            [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10000', key='-E1-')],
+            [sg.Text('Tensión Primario (V):', size=(18,1)), sg.Input('10500', key='-E1-')],
             [sg.Text('Tensión Secundario (V):', size=(18,1)), sg.Input('400', key='-E2-')],
             [sg.Text('Frecuencia (Hz):', size=(18,1)), sg.Input('60', key='-FREQ-')],
             [sg.Text('Conexión:', size=(18,1), key='-LBL-CONN-'),
@@ -78,8 +78,8 @@ class Application:
             [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input('1.625', key='-PF_MANUAL-', disabled=False, tooltip='Valor manual para pérdidas específicas en el hierro')],
             [sg.HorizontalSeparator()],
             [sg.Text('Parámetros de Tabla Opcionales:', font=('Helvetica', 10, 'bold'))],
-            [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input(key='-FA_OPCIONAL-', disabled=False)],
-            [sg.Text('Coeficiente Kf:', size=(20,1)), sg.Input(key='-KR_OPCIONAL-', disabled=False)],
+            [sg.Text('Factor de Apilamiento (fa):', size=(20,1)), sg.Input('0.975', key='-FA_OPCIONAL-', disabled=False)],
+            [sg.Text('Coeficiente Kf:', size=(20,1)), sg.Input('0.825', key='-KR_OPCIONAL-', disabled=False)],
             [sg.Text('Pérdidas Hierro Pf (W/kg):', size=(20,1)), sg.Input(key='-PF_OPCIONAL-', disabled=False, tooltip='Valor de tabla para pérdidas específicas en el hierro')],
             [sg.Text('Densidad Acero (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_ACERO_OPCIONAL-', disabled=False)],
             [sg.Text('Densidad Cobre (kg/cm³):', size=(20,1)), sg.Input(key='-RHO_COBRE_OPCIONAL-', disabled=False)]
@@ -237,8 +237,16 @@ class Application:
             diseno = DisenoTransformador(**params)
             diseno.ejecutar_calculo_completo()
             
-            export_dir = "exports"
-            os.makedirs(export_dir, exist_ok=True)
+            # Guardar exports en %LOCALAPPDATA% para evitar solicitar permisos al escribir
+            import tempfile
+            local_appdata = os.getenv('LOCALAPPDATA') or os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+            export_dir = os.path.join(local_appdata, 'CalculadoraTransformadores', 'exports')
+            try:
+                os.makedirs(export_dir, exist_ok=True)
+            except Exception:
+                # Fallback al directorio de trabajo actual si por alguna razón LOCALAPPDATA no es accesible
+                export_dir = 'exports'
+                os.makedirs(export_dir, exist_ok=True)
             s_kva = values['-S_KVA-'].replace('.','p')
             filename = f"Reporte_{s_kva}kVA.png"
             filepath = os.path.join(export_dir, filename)

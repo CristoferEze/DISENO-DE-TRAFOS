@@ -23,7 +23,7 @@ PyLaTeX==1.4.2
 PyMuPDF==1.26.4
 pynsist==2.8
 pyparsing==3.2.5
-PySimpleGUI==5.0.10
+PySimpleGUI==4.60.5.1
 python-dateutil==2.9.0.post0
 PyTinyTeX==0.4.0
 pywin32-ctypes==0.2.3

@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import math
-from design_phases.nucleus_and_window import calculation as nucleus_calc
-from design_phases.windings_and_taps import calculation as windings_calc
-from design_phases.core_and_lamination_weights import calculation as core_weights_calc
-from design_phases.losses_and_performance import calculation as losses_perf_calc
-from design_phases.daily_performance import calculation as daily_perf_calc
+from design_phases.step02_nucleus_and_window import calculation as nucleus_calc
+from design_phases.step03_windings_and_taps import calculation as windings_calc
+from design_phases.step04_core_and_lamination_weights import calculation as core_weights_calc
+from design_phases.step05_losses_and_performance import calculation as losses_perf_calc
+from design_phases.step06_daily_performance import calculation as daily_perf_calc
 
 class DisenoTransformador:
     """
@@ -16,7 +16,7 @@ class DisenoTransformador:
     def __init__(self, **kwargs):
         self.tipo = kwargs.get('tipo', 'trifasico')
         self.S = float(kwargs.get('S', 25))  # Cambiar valor inicial a 50 kVA
-        self.E1_linea = float(kwargs.get('E1', 10000))  # Cambiar valor inicial a 13200 V
+        self.E1_linea = float(kwargs.get('E1', 10500))  # Valor por defecto cambiado a 10500 V
         self.E2_linea = float(kwargs.get('E2', 400))
         self.f = float(kwargs.get('f', 60))
         self.acero = kwargs.get('acero', '35M6')
@@ -40,7 +40,14 @@ class DisenoTransformador:
         self.Kc_opcional = kwargs.get('kc_opcional')
         self.J_opcional = kwargs.get('j_opcional')
         # Valores opcionales de parámetros de tabla
-        self.fa_opcional = kwargs.get('fa_opcional')
+        # Por defecto usar factor de apilamiento 0.975 si no se proporciona
+        fa_val = kwargs.get('fa_opcional', None)
+        try:
+            # si fa_opcional fue provisto y no es None, usar su valor convertido a float
+            self.fa_opcional = float(fa_val) if fa_val is not None else 0.975
+        except Exception:
+            # en caso de valor inválido, caer a 0.975
+            self.fa_opcional = 0.975
         self.Kr_opcional = kwargs.get('kr_opcional')
         self.Pf_opcional = kwargs.get('pf_opcional')
         self.rho_acero_opcional = kwargs.get('rho_acero_opcional')
@@ -51,6 +58,13 @@ class DisenoTransformador:
         # Asegurar que el ciclo de carga pasado en kwargs quede registrado en el objeto.
         # Puede ser None o una lista de tuplas (carga_frac, horas).
         self.ciclo_carga = kwargs.get('ciclo_carga', None)
+
+        # Valores por defecto de peso por metro (kg/m) para conductores cuando no se
+        # ha seleccionado un calibre estándar ni se han calculado las secciones.
+        # Tomamos como referencia un calibre medio (aprox. AWG 12 -> 29.4 g/m)
+        self.peso_conductor_primario_kg_m = float(kwargs.get('peso_conductor_primario_kg_m', 0.0294))
+        self.peso_conductor_secundario_kg_m = float(kwargs.get('peso_conductor_secundario_kg_m', 0.0294))
+
         self._inicializar_propiedades()
 
     def _inicializar_propiedades(self):

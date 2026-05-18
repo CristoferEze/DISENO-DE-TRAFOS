@@ -9,7 +9,14 @@ def add_calculation_step(doc, titulo, formula, valores, resultado, unidad):
     Función auxiliar para añadir un bloque de cálculo estandarizado de forma compacta.
     """
     unidad_safe = unidad if unidad is not None else ""
-    unidad_latex = f"\\mathrm{{{unidad_safe.replace('^2', '^{{2}}')}}}" if unidad_safe else ""
+    # Evitar envolver en \mathrm{} cuando la unidad ya contiene TeX (por ejemplo "\\mathrm{...}" o comandos)
+    if unidad_safe:
+        if "\\" in unidad_safe:
+            unidad_latex = unidad_safe
+        else:
+            unidad_latex = f"\\mathrm{{{unidad_safe.replace('^2', '^{{2}}')}}}"
+    else:
+        unidad_latex = ""
     
     # Formato compacto sin subsecciones para evitar saltos de página
     doc.append(NoEscape(f"\\textbf{{{titulo}}}"))
@@ -67,8 +74,8 @@ def generate_full_report_document(diseno, work_dir=None):
      
         # --- 1. FASE DE CÁLCULO ---
         # Importar los módulos de CÁLCULO
-        from design_phases.nucleus_and_window import calculation as nucleus_calc
-        from design_phases.core_and_lamination_weights import calculation as core_weights_calc
+        from design_phases.step02_nucleus_and_window import calculation as nucleus_calc
+        from design_phases.step04_core_and_lamination_weights import calculation as core_weights_calc
         # (Aquí irían otros módulos de cálculo como windings, losses, etc.)
         # from design_phases.windings_and_taps import calculation as windings_calc
         
@@ -81,12 +88,12 @@ def generate_full_report_document(diseno, work_dir=None):
      
         # --- 2. FASE DE RENDERIZADO ---
         # Importar los módulos de RENDERIZADO
-        from design_phases.input_data import renderer as input_renderer
-        from design_phases.nucleus_and_window import renderer as nucleus_renderer
-        from design_phases.windings_and_taps import renderer as windings_renderer
-        from design_phases.core_and_lamination_weights import renderer as core_weights_renderer
-        from design_phases.losses_and_performance import renderer as losses_perf_renderer
-        from design_phases.daily_performance import renderer as daily_perf_renderer
+        from design_phases.step01_input_data import renderer as input_renderer
+        from design_phases.step02_nucleus_and_window import renderer as nucleus_renderer
+        from design_phases.step03_windings_and_taps import renderer as windings_renderer
+        from design_phases.step04_core_and_lamination_weights import renderer as core_weights_renderer
+        from design_phases.step05_losses_and_performance import renderer as losses_perf_renderer
+        from design_phases.step06_daily_performance import renderer as daily_perf_renderer
      
         # Ahora que 'diseno' está completo, renderizar cada sección.
         # Los renderizadores solo leen el objeto 'diseno' y escriben en 'doc'.

@@ -31,11 +31,13 @@ def run(doc, d):
 
         # CORREGIDO: Usar fa_original y Kr_original para mostrar valores sin redondear
         fa_display = getattr(d, 'fa_original', getattr(d, 'fa', 0.975))
+        # Usar siempre el valor original de Kr (Kf) para presentación, sin alterar la precisión interna
         kf_display = getattr(d, 'Kr_original', getattr(d, 'Kr', 1.0))
+        # Formato LaTeX seguro para unidades: usar \mathrm{...} y exponentes correctamente escapados
         parametros_base = (
-            f"B = {d.B_kgauss*1000:.0f} \\, \\mathrm{{gauss}}, "
-            f"J = {d.J:.2f} \\, \\mathrm{{A/mm^2}}, "
-            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_f = {kf_display:.6f}"
+            f"B = {d.B_kgauss*1000:.0f} \\; \\mathrm{{gauss}}, "
+            f"J = {d.J:.2f} \\; \\mathrm{{A/mm^{{2}}}}, "
+            f"C = {d.C:.2f}, f_a = {fa_display:.3f}, K_f = {kf_display:.3f}"
         )
         doc.append(Math(data=[NoEscape(parametros_base)], escape=False))
 

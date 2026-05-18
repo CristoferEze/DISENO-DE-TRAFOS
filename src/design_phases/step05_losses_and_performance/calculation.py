@@ -18,10 +18,10 @@ def run(d):
     """
 
     # 1. Pérdidas en el Cobre (Pc específica en W/kg)
-    # Usar valor manual si está disponible, si no calcular con fórmula
-    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_manual', None) is not None:
-        d.Pc = d.Pc_manual
-        d.Pc_calculation_method = "Valor manual"
+    # Usar SOLO el valor opcional (si se habilitan los opcionales). No usar valores 'manual' aquí.
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_opcional', None) is not None:
+        d.Pc = d.Pc_opcional
+        d.Pc_calculation_method = "Valor opcional"
     else:
         d.Pc = 2.44 * (getattr(d, 'J', 0.0) ** 2)
         d.Pc_calculation_method = "Fórmula empírica (2.44 × J²)"
@@ -59,11 +59,8 @@ def run(d):
     d.Wc = mass_copper_for_losses * d.Pc
 
     # 2. Pérdidas en el Hierro (Pf específica en W/kg)
-    # Prioridad: 1) Valor manual, 2) Valor opcional, 3) Valor de tabla según acero
-    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_manual', None) is not None:
-        d.Pf = d.Pf_manual
-        d.Pf_calculation_method = "Valor manual"
-    elif getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', 0):
+    # Usar SOLO el valor opcional (si se habilitan los opcionales). No usar valores 'manual' aquí.
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', None) is not None:
         d.Pf = d.Pf_opcional
         d.Pf_calculation_method = "Valor opcional de tabla"
     else:

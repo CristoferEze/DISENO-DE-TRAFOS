@@ -21,8 +21,8 @@ def run(doc, d, add_step):
             pc_method = getattr(d, 'Pc_calculation_method', 'Fórmula empírica (2.44 × J²)')
             doc.append(NoEscape(fr"\textbf{{Pérdidas Específicas ($P_c$) - {pc_method}}}"))
             
-            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_manual', None) is not None:
-                doc.append(NoEscape(fr"Valor manual ingresado: $P_c = {formatear_numero(getattr(d, 'Pc', 0.0))}$ W/kg"))
+            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_opcional', None) is not None:
+                doc.append(NoEscape(fr"Valor opcional ingresado: $P_c = {formatear_numero(getattr(d, 'Pc', 0.0))}$ W/kg"))
             else:
                 add_step(doc, r"Pérdidas Específicas ($P_c$)", r"P_c = 2.44 \cdot J^2",
                          fr"P_c = 2.44 \cdot ({formatear_numero(getattr(d, 'J', 0.0))})^2",
@@ -48,9 +48,7 @@ def run(doc, d, add_step):
             pf_method = getattr(d, 'Pf_calculation_method', f'Valor de tabla para acero {getattr(d, "acero", "?")}')
             doc.append(NoEscape(fr"\textbf{{Pérdidas Específicas ($P_f$) - {pf_method}}}"))
             
-            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_manual', None) is not None:
-                doc.append(NoEscape(fr"Valor manual ingresado: $P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)}$ W/kg"))
-            elif getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', 0):
+            if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', None) is not None:
                 doc.append(NoEscape(fr"Valor opcional de tabla: $P_f = {formatear_numero(getattr(d, 'Pf', 0.0), 3)}$ W/kg"))
             else:
                 doc.append(NoEscape(fr"Para acero \textbf{{{getattr(d, 'acero', '?')}}} a ${formatear_numero(getattr(d, 'B_kgauss', 0.0))}$ kGauss, el valor de tabla es:"))
@@ -59,9 +57,11 @@ def run(doc, d, add_step):
  
             # Masa de hierro usada para pérdidas (fórmula empírica) - usar Kf original sin redondear
             kf_used = getattr(d, 'Kf_used_for_Qf', getattr(d, 'Kr_original', getattr(d, 'Kr', 1.0)))
+            # Asegurar presentación a 3 decimales para Kf en la fórmula
+            kf_present = f"{float(kf_used):.3f}"
             add_step(doc, r"Masa de hierro (empírica) $Q_f$",
                      r"Q_f = " + ("0.012" if getattr(d, 'fases', 3) == 1 else "0.006") + r" \cdot K_f \cdot D^2 \cdot (3b + 4c + 5.87D)",
-                     fr"Q_f = {('0.012' if getattr(d, 'fases', 3) == 1 else '0.006')} \cdot {kf_used:.6f} \cdot {formatear_numero(getattr(d, 'D', 0.0))}^2 \cdot (3 \cdot {formatear_numero(getattr(d, 'b', 0.0))} + 4 \cdot {formatear_numero(getattr(d, 'c', 0.0))} + 5.87 \cdot {formatear_numero(getattr(d, 'D', 0.0))})",
+                     fr"Q_f = {('0.012' if getattr(d, 'fases', 3) == 1 else '0.006')} \cdot {kf_present} \cdot {formatear_numero(getattr(d, 'D', 0.0))}^2 \cdot (3 \cdot {formatear_numero(getattr(d, 'b', 0.0))} + 4 \cdot {formatear_numero(getattr(d, 'c', 0.0))} + 5.87 \cdot {formatear_numero(getattr(d, 'D', 0.0))})",
                      fr"Q_f = {formatear_numero(getattr(d, 'Qf_empirical', 0.0))}", "kg")
 
             # Mostrar detalle físico de Qr (opcional) y luego usar Qf empírica para las pérdidas

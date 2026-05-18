@@ -111,6 +111,14 @@ dimensiones_escalones_db = {
     6: [0.959, 0.875, 0.768, 0.640, 0.488, 0.281]
 }
 
+# Medidas nominales estándar para pletinas (ancho w y espesor t) - valores típicos comerciales en mm
+pletina_w_std = [4.0, 4.25, 4.5, 4.75, 5.0, 5.3, 5.6, 6.0, 6.3, 6.7, 7.1, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.6, 11.2, 11.8, 12.5, 13.2, 13.6, 14.0, 14.5, 15.0, 15.5, 16.0, 16.5, 17.0]
+pletina_t_std = [1.12, 1.18, 1.25, 1.32, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.12, 2.24, 2.38, 2.5, 2.65, 2.8, 3.0, 3.15, 3.35, 3.55, 3.75, 4.0, 4.25, 4.5, 4.75, 5.0, 5.3, 5.6, 6.0, 6.3, 6.7, 7.1, 7.5, 8.0, 8.5, 9.0]
+
+# Incremento para redondeo de espesor de pletina (mm). Se usa para redondear t_min calculado.
+# Por defecto 0.1 mm: siempre redondear hacia arriba al decimal superior (ej. 0.11 o 0.15 -> 0.2)
+pletina_thickness_step_mm = 0.1
+
 # --- NUEVO: Tabla de Propiedades de Conductores de Cobre AWG ---
 # Fuente: tabla de calibres AWG con diámetro, sección y peso por metro (g/m)
 # Clave: Calibre AWG (str), Valor: diccionario con propiedades
@@ -164,3 +172,20 @@ awg_conductors_db = {
 
 # Alias público para compatibilidad con la UI (uso: from core.database import conexiones_normalizadas)
 conexiones_normalizadas = conexiones_normalizadas_db
+
+# Rigidez dieléctrica papel Presspan en aceite (kV/mm)
+rigidez_papel_presspan = 40.0 # Promedio de 35-45
+
+# Tensiones de impulso y márgenes (Clase ANSI, BIL, Collarín, Aisl Yugo)
+# Valores basados en Tabla N° 1.12 - Resumen maestro
+# Clave: Tensión máxima (kV)
+clase_aislamiento_db = {
+    0.30:  {'clase': 0.25, 'BIL': 10,  'd_c': 6.0,  'e_y': 1.3, 'esp_min': 0.10, 'esp_max': 0.50},
+    0.72:  {'clase': 0.60, 'BIL': 20,  'd_c': 6.5,  'e_y': 1.5, 'esp_min': 0.20, 'esp_max': 0.80},
+    1.00:  {'clase': 1.20, 'BIL': 30,  'd_c': 6.5,  'e_y': 1.5, 'esp_min': 0.30, 'esp_max': 1.00},
+    4.16:  {'clase': 5.00, 'BIL': 60,  'd_c': 6.5,  'e_y': 2.0, 'esp_min': 0.50, 'esp_max': 1.20},
+    7.62:  {'clase': 8.70, 'BIL': 75,  'd_c': 10.0, 'e_y': 2.0, 'esp_min': 0.60, 'esp_max': 1.50},
+    13.80: {'clase': 15.00, 'BIL': 95,  'd_c': 13.0, 'e_y': 2.0, 'esp_min': 0.80, 'esp_max': 2.00},
+    22.90: {'clase': 25.00, 'BIL': 125, 'd_c': 32.0, 'e_y': 4.5, 'esp_min': 1.00, 'esp_max': 2.50},
+    33.00: {'clase': 34.50, 'BIL': 150, 'd_c': 51.0, 'e_y': 4.5, 'esp_min': 1.50, 'esp_max': 3.00}
+}

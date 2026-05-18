@@ -6,11 +6,20 @@ import os
 from . import single_phase_drawer
 from . import three_phase_drawer
 
-def generate_connection_diagram(d, output_dir='temp'):
+import tempfile
+
+def _resolve_output_dir(output_dir):
+    if not output_dir or output_dir == 'temp':
+        return tempfile.gettempdir()
+    return output_dir
+
+
+def generate_connection_diagram(d, output_dir=None):
     """
     Genera un diagrama de conexionado.
     Decide qué tipo de diagrama dibujar basado en el número de fases.
     """
+    output_dir = _resolve_output_dir(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'connection_diagram.png')
     

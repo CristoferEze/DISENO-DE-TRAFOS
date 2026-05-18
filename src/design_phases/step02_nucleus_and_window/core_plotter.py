@@ -3,14 +3,23 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
 
-def generate_core_plot(d, output_dir='temp'):
+import tempfile
+
+def _resolve_output_dir(output_dir):
+    if not output_dir or output_dir == 'temp':
+        return tempfile.gettempdir()
+    return output_dir
+
+
+def generate_core_plot(d, output_dir=None):
     """
     Genera una visualización de la sección transversal del núcleo cruciforme
     y la guarda como una imagen. Devuelve la ruta absoluta en una lista.
     """
+    output_dir = _resolve_output_dir(output_dir)
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        
+        os.makedirs(output_dir, exist_ok=True)
+
     output_path = os.path.join(output_dir, 'core_plot.png')
 
     fig, ax = plt.subplots(figsize=(6, 6))

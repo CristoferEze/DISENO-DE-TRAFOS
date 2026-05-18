@@ -7,8 +7,9 @@ def run(d):
     fases = getattr(d, 'fases', 3)
     
     # 1. Perdidas en el Cobre
-    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_manual', None) is not None:
-        d.Pc = d.Pc_manual
+    # Usar SOLO el valor opcional (si se habilitan los opcionales). No usar valores 'manual' aquí.
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pc_opcional', None) is not None:
+        d.Pc = d.Pc_opcional
     else:
         d.Pc = 2.44 * (getattr(d, 'J', 0.0) ** 2)
 
@@ -25,11 +26,9 @@ def run(d):
     d.Wc = mass_copper * d.Pc
 
     # 2. Perdidas en el Hierro
-    # << CAMBIO: Se anade la logica para d.Pf_opcional >>
+    # Usar SOLO el valor opcional (si se habilitan los opcionales). No usar valores 'manual' aquí.
     if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_opcional', None) is not None:
         d.Pf = d.Pf_opcional
-    elif getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'Pf_manual', None) is not None:
-        d.Pf = d.Pf_manual
     else:
         d.Pf = utils.get_specific_iron_loss(getattr(d, 'acero', None), getattr(d, 'B_kgauss', 0.0))
 

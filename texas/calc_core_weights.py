@@ -4,15 +4,45 @@
 import math
 import database as db
 
+def _find_steel_data(steel_key):
+    # Buscar por clave directa o por designacion_antigua (compatibilidad)
+    if steel_key in db.acero_electrico_db:
+        return db.acero_electrico_db[steel_key]
+    for data in db.acero_electrico_db.values():
+        if data.get('designacion_antigua') == steel_key:
+            return data
+    return {}
+
+
 def run(d):
-    """Calcula el peso detallado del nucleo, considerando la geometria del corte."""
+    """Calcula el peso detallado del nucleo, considerando la geometria del corte.
+
+    Añade soporte para valores opcionales definidos en `main.py`:
+    - d.usar_valores_opcionales: flag general
+    - d.acero_opcional: clave alternativa para seleccionar el acero
+    - d.fa_opcional: factor de apilamiento (fa)
+    - d.espesor_lamina_mm_opcional: espesor de lamina en mm
+    """
     d.peso_por_escalon = []
     d.Qr_por_laminaciones = 0.0
 
     rho_kg_cm3 = 7.65 / 1000.0
-    steel_data = db.acero_electrico_db.get(getattr(d, 'acero', 'M-6'), {})
-    espesor_lamina_cm = steel_data.get('espesor_mm', 0.35) / 10.0
-    factor_apilamiento = float(getattr(d, 'fa_original', 0.975))
+    # Determinar el tipo de acero a usar (permite override opcional)
+    acero_key = getattr(d, 'acero_opcional', None) or getattr(d, 'acero', 'M-6')
+    steel_data = _find_steel_data(acero_key)
+
+    # Espesor de lamina: preferir valor opcional si está activado
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'espesor_lamina_mm_opcional', None) is not None:
+        espesor_lamina_cm = float(d.espesor_lamina_mm_opcional) / 10.0
+    else:
+        espesor_lamina_cm = steel_data.get('espesor_mm', 0.35) / 10.0
+
+    # Factor de apilamiento (fa): preferir valor opcional si está activado
+    if getattr(d, 'usar_valores_opcionales', False) and getattr(d, 'fa_opcional', None) is not None:
+        factor_apilamiento = float(d.fa_opcional)
+        d.fa_original = factor_apilamiento
+    else:
+        factor_apilamiento = float(getattr(d, 'fa_original', steel_data.get('fa', 0.975)))
 
     if not (getattr(d, 'anchos', None) and getattr(d, 'espesores', None)):
         return # No se puede calcular sin estas dimensiones

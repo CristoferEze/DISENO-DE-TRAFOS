@@ -125,7 +125,8 @@ def run(d):
     else:
         E1_kv = d.E1_fase / 1000.0
         kc_n = 8 if d.S <= 10 else (10 if 10 < d.S <= 250 else 12)
-        d.Kc_original = (kc_n / (30 + E1_kv)) * 1.15
+        # El profesor hizo cambios en esta parte nueva versión se quita el factor de 1.15 que se usaba antes para aumentar Kc, ahora se calcula directamente sin ese factor adicional.
+    d.Kc_original = (kc_n / (30 + E1_kv))
     
     # Redondear Kc según configuración (usar ROUND_HALF_UP para evitar 'bankers rounding')
     if getattr(d, 'redondear_2_decimales', False):
