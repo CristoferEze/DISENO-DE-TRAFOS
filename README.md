@@ -12,8 +12,7 @@ Este proyecto implementa en Python un flujo completo para el diseño de transfor
 
 Instalación rápida
 
-- Recomendado: usar `uv` para gestionar el entorno y ejecutar comandos (ver `pyproject.toml` si está presente).
-- Alternativa sin `uv` (Windows):
+- Alternativa (Windows):
   - Crear entorno: `py -3 -m venv .venv`
   - Activar: `.\.venv\Scripts\activate`
   - Instalar dependencias: `pip install -r requirements.txt`
@@ -21,6 +20,8 @@ Instalación rápida
 Ejecución
 
 - Desde la raíz del proyecto puedes ejecutar la aplicación gráfica:
+
+- Ejecutar en desarrollo (desde la raíz): `scripts\\start`
 
 
 # Pseudo-npm nativo para Windows (scripts/)
@@ -41,10 +42,8 @@ D:\...\SEM3\
   ├── init.bat
   ├── install.bat
   ├── start.bat
-  ├── start_prod.bat
   ├── build.bat
-  ├── publish.bat
-  └── update_reqs.bat
+  └── publish.bat
 ```
 
 Comandos rápidos (desde la raíz):
@@ -53,10 +52,8 @@ Comandos rápidos (desde la raíz):
 scripts\init       # Crea .venv
 scripts\install    # Instala dependencias
 scripts\start      # Ejecuta la app en modo desarrollo
-scripts\start_prod # Ejecuta la app en modo producción
 scripts\build      # Genera el instalador (.exe)
 scripts\publish    # Publica el instalador
-scripts\update_reqs# Actualiza requirements.txt
 ```
 
 Flujo típico:
@@ -80,17 +77,20 @@ Notas:
 - Los `.bat` son nativos de Windows y no fallan con rutas que contienen espacios.
 - `pyproject.toml` fue simplificado a metadatos básicos; los scripts se gestionan con los `.bat` en `scripts/`.
 
-Limpieza de la raíz
--------------------
-Si deseas borrar los archivos antiguos que quedaron en la raíz, ejecuta:
+
+Estructura del código (resumen)
+-------------------------------
+El directorio `src/` contiene el código fuente principal. Resumen de carpetas relevantes (sin archivos compilados ni `__pycache__`):
 
 ```
-cleanup_root_scripts.bat
+src/
+├── core/                # lógica de bajo nivel y utilidades
+├── design_phases/       # módulos por fase de diseño (núcleo, ventana, bobinados, pérdidas...)
+├── diagrams/            # generadores de diagramas y utilidades de dibujo
+├── setup/               # asistentes y comprobadores de dependencias
+├── ui/                  # vistas y ensamblaje de la interfaz gráfica
+└── main.py              # punto de entrada de la aplicación
 ```
-
-El script pedirá confirmación antes de borrar archivos.
-- El punto de entrada principal es `src/main.py`.
-- Si quieres que incluya las dependencias del `requirements.txt` dentro de `pyproject.toml` (bloque `dependencies`), lo puedo añadir para que `uv` maneje todo desde el pyproject.
 
 Créditos
 
